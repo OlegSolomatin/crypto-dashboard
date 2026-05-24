@@ -466,6 +466,8 @@ class BacktestRunner:
             # Run strategy
             if strategy == "rsi":
                 report = BacktestRunner._run_rsi(candles, balance, leverage, position_size, bt, params, step_delay)
+            elif strategy == "hammer":
+                report = BacktestRunner._run_hammer(candles, balance, leverage, position_size, bt, params, step_delay)
             elif strategy == "rsi_trailing":
                 report = BacktestRunner._run_rsi_trailing(candles, balance, leverage, position_size, bt, params, step_delay)
             else:
@@ -895,6 +897,149 @@ class BacktestRunner:
                 "exit": round(exit_price, 4), "pnl": round(net_pnl, 4),
                 "pnl_pct": round(pnl / (position["entry"] * position["qty"]) * 100, 2),
                 "reason": reason, "bars": len(closes) - position["bar"]
+            })
+        
+        return BacktestRunner._build_report(trades, balance, params)
+    
+    @staticmethod
+    def _run_hammer(candles, balance, leverage, position_size, bt, params, step_delay=0):
+        """Hammer-стратегия: свечной паттерн Hammer (Молот) с RR 1:2."""
+        import time as _time
+        closes = [c["close"] for c in candles]
+        highs  = [c["high"]  for c in candles]
+        lows   = [c["low"]   for c in candles]
+        opens  = [c["open"]  for c in candles]
+        
+        COOLDOWN_BARS = 5         # минимум свечей между сделками
+        RR_RATIO = 2.0            # Risk/Reward 1:2
+        TIMEOUT_BARS = 20         # выход по времени через 20 свечей
+        MIN_TREND_BARS = 3        # минимум свечей падения перед молотом
+        
+        trades = []
+        last_trade_bar = -COOLDOWN_BARS
+        position = None  # {type, entry, sl, tp, bar, qty}
+        
+        def is_hammer(i):
+            """Проверка: свеча i — молот?"""
+            body = abs(closes[i] - opens[i])
+            lower_shadow = min(opens[i], closes[i]) - lows[i]
+            upper_shadow = highs[i] - max(opens[i], closes[i])
+            total_range = highs[i] - lows[i]
+            
+            if total_range == 0:
+                return False
+            if body == 0:
+                # Doji-hammer: длинная нижняя тень без тела
+                return lower_shadow >= total_range * 0.6 and upper_shadow <= total_range * 0.1
+            
+            body_upper = max(opens[i], closes[i])
+            return (lower_shadow >= body * 2.0 and
+                    upper_shadow <= body * 0.3 and
+                    body_upper >= lows[i] + total_range * 0.7)
+        
+        def is_downtrend(i, n=MIN_TREND_BARS):
+            """Проверка: последние n свечей падают?"""
+            if i < n + 1:
+                return False
+            return all(closes[i-j] < closes[i-j-1] for j in range(1, n+1))
+        
+        for i in range(10, len(closes)):
+            if bt.get("cancelled"):
+                break
+            if step_delay:
+                _time.sleep(step_delay)
+            bt["progress"] = 30 + int(60 * i / len(closes))
+            bt["candles_processed"] = i
+            
+            # Live stats
+            if i % 10 == 0 or i == len(closes) - 1:
+                wins = sum(1 for t in trades if t["pnl"] > 0)
+                bt["live_balance"] = round(balance, 2)
+                bt["live_trades"] = len(trades)
+                bt["live_win_rate"] = round(wins / len(trades) * 100, 1) if trades else 0
+            
+            if balance <= 0:
+                bt["message"] = "⚠️ Баланс обнулён!"
+                break
+            
+            cur = closes[i]
+            
+            # Проверка открытой позиции
+            if position:
+                hit_sl = (position["type"] == "BUY" and lows[i] <= position["sl"])
+                hit_tp = (position["type"] == "BUY" and highs[i] >= position["tp"])
+                timed_out = (i - position["bar"] >= TIMEOUT_BARS)
+                
+                if hit_sl:
+                    exit_price = position["sl"]
+                    reason = "STOP_LOSS"
+                elif hit_tp:
+                    exit_price = position["tp"]
+                    reason = "TAKE_PROFIT"
+                elif timed_out:
+                    exit_price = cur
+                    reason = "TIMEOUT"
+                else:
+                    continue
+                
+                pnl = (exit_price - position["entry"]) * position["qty"]
+                commission = position["entry"] * position["qty"] * 0.0004 * 2
+                net_pnl = pnl - commission
+                balance += net_pnl
+                trades.append({
+                    "type": position["type"],
+                    "entry": round(position["entry"], 4),
+                    "exit": round(exit_price, 4),
+                    "pnl": round(net_pnl, 4),
+                    "pnl_pct": round(pnl / (position["entry"] * position["qty"]) * 100, 2),
+                    "reason": reason,
+                    "bars": i - position["bar"]
+                })
+                position = None
+                continue
+            
+            # Кулдаун
+            if i - last_trade_bar < COOLDOWN_BARS:
+                continue
+            
+            # Поиск молота
+            if is_hammer(i) and is_downtrend(i):
+                entry = closes[i + 1] if i + 1 < len(closes) else closes[i]
+                sl = lows[i] * 0.998  # чуть ниже минимума молота
+                risk = entry - sl
+                if risk <= 0:
+                    continue
+                tp = entry + risk * RR_RATIO
+                
+                # Размер позиции
+                margin = position_size * leverage
+                qty = margin / entry
+                
+                position = {
+                    "type": "BUY",
+                    "entry": entry,
+                    "sl": sl,
+                    "tp": tp,
+                    "bar": i,
+                    "qty": qty
+                }
+                last_trade_bar = i
+        
+        # Закрыть открытую позицию в конце
+        if position:
+            exit_price = closes[-1]
+            pnl = (exit_price - position["entry"]) * position["qty"]
+            commission = position["entry"] * position["qty"] * 0.0004 * 2
+            net_pnl = pnl - commission
+            balance += net_pnl
+            trades.append({
+                "type": position["type"],
+                "entry": round(position["entry"], 4),
+                "exit": round(exit_price, 4),
+                "pnl": round(net_pnl, 4),
+                "pnl_pct": round(pnl / (position["entry"] * position["qty"]) * 100, 2),
+                "reason": "END_OF_PERIOD",
+                "bars": len(closes) - position["bar"]
             })
         
         return BacktestRunner._build_report(trades, balance, params)
@@ -1449,6 +1594,178 @@ def run(candles, balance, leverage, position_size):
 # ПЕРИОД (period) — дней истории для загрузки свечей.
 #   Трейлинг-стоп активируется после +0.5% движения.
 #   Нужно достаточно свечей, чтобы цена успела дойти до активации.
+#
+# ═══════════════════════════════════════════════════════════
+
+if __name__ == "__main__":
+    # Так бэктестер запускает стратегию
+    # candles = fetch_candles(symbol="{PAIR}", interval="5m", days=period)
+    candles = []
+    report = run(
+        candles=candles,
+        balance=balance,           # ← стартовый депозит
+        leverage=leverage,         # ← кредитное плечо
+        position_size=position_size  # ← размер позиции
+    )
+    print(f"P&L: ${report['net_pnl']} | Сделок: {report['total_trades']} | Винрейт: {report['win_rate']}%")
+'''.replace("{PAIR}", pair)
+        return code
+
+    elif strategy == "hammer":
+        code = params_block + '''"""
+Hammer (Молот) — свечной паттерн разворота после нисходящего тренда.
+Длинная нижняя тень (≥ 2× тело), маленькая верхняя тень, тело в верхней трети.
+SL = минимум молота × 0.998, TP = SL + риск × 2 (RR 1:2).
+Тайм-аут: 20 свечей. Только LONG.
+"""
+import time
+
+# ── Параметры паттерна ──
+COOLDOWN_BARS = 5         # кулдаун между сделками
+RR_RATIO = 2.0            # Risk/Reward 1:2 (консервативный)
+TIMEOUT_BARS = 20         # выход по времени
+MIN_TREND_BARS = 3        # минимум свечей падения перед молотом
+
+def is_hammer(open_, high, low, close):
+    """Проверка: свеча — молот?"""
+    body = abs(close - open_)
+    lower_shadow = min(open_, close) - low
+    upper_shadow = high - max(open_, close)
+    total_range = high - low
+
+    if total_range == 0:
+        return False
+    if body == 0:
+        return lower_shadow >= total_range * 0.6 and upper_shadow <= total_range * 0.1
+
+    body_upper = max(open_, close)
+    return (lower_shadow >= body * 2.0 and
+            upper_shadow <= body * 0.3 and
+            body_upper >= low + total_range * 0.7)
+
+def is_downtrend(closes, i, n=MIN_TREND_BARS):
+    """Последние n свечей закрывались ниже предыдущей?"""
+    if i < n + 1:
+        return False
+    return all(closes[i-j] < closes[i-j-1] for j in range(1, n+1))
+
+def run(candles, balance, leverage, position_size):
+    """Прогон Hammer-стратегии на массиве свечей."""
+    closes = [c["close"] for c in candles]
+    highs  = [c["high"]  for c in candles]
+    lows   = [c["low"]   for c in candles]
+    opens  = [c["open"]  for c in candles]
+
+    trades = []
+    last_trade_bar = -COOLDOWN_BARS
+    position = None  # {type, entry, sl, tp, bar, qty}
+
+    for i in range(10, len(closes)):
+        if balance <= 0:
+            break
+
+        cur = closes[i]
+
+        # ── Проверка открытой позиции ──
+        if position:
+            hit_sl = lows[i] <= position["sl"]
+            hit_tp = highs[i] >= position["tp"]
+            timed_out = (i - position["bar"] >= TIMEOUT_BARS)
+
+            if hit_sl:
+                exit_price = position["sl"]; reason = "STOP_LOSS"
+            elif hit_tp:
+                exit_price = position["tp"]; reason = "TAKE_PROFIT"
+            elif timed_out:
+                exit_price = cur; reason = "TIMEOUT"
+            else:
+                continue
+
+            pnl = (exit_price - position["entry"]) * position["qty"]
+            commission = position["entry"] * position["qty"] * 0.0004 * 2
+            net_pnl = pnl - commission
+            balance += net_pnl
+            trades.append({
+                "type": position["type"], "entry": round(position["entry"], 4),
+                "exit": round(exit_price, 4), "pnl": round(net_pnl, 4),
+                "pnl_pct": round(pnl / (position["entry"] * position["qty"]) * 100, 2),
+                "reason": reason, "bars": i - position["bar"]
+            })
+            position = None
+            continue
+
+        # ── Кулдаун ──
+        if i - last_trade_bar < COOLDOWN_BARS:
+            continue
+
+        # ── Поиск молота ──
+        if is_hammer(opens[i], highs[i], lows[i], closes[i]) and is_downtrend(closes, i):
+            # Вход на открытии следующей свечи
+            entry = closes[i + 1] if i + 1 < len(closes) else closes[i]
+            sl = lows[i] * 0.998
+            risk = entry - sl
+            if risk <= 0:
+                continue
+            tp = entry + risk * RR_RATIO  # RR 1:2
+
+            # Размер позиции: position_size × leverage ÷ цена
+            margin = position_size * leverage
+            qty = margin / entry
+
+            position = {
+                "type": "BUY", "entry": entry,
+                "sl": sl, "tp": tp,
+                "bar": i, "qty": qty
+            }
+            last_trade_bar = i
+
+    # Закрыть позицию в конце периода
+    if position:
+        exit_price = closes[-1]
+        pnl = (exit_price - position["entry"]) * position["qty"]
+        commission = position["entry"] * position["qty"] * 0.0004 * 2
+        net_pnl = pnl - commission
+        balance += net_pnl
+        trades.append({
+            "type": position["type"], "entry": round(position["entry"], 4),
+            "exit": round(exit_price, 4), "pnl": round(net_pnl, 4),
+            "pnl_pct": round(pnl / (position["entry"] * position["qty"]) * 100, 2),
+            "reason": "END_OF_PERIOD", "bars": len(closes) - position["bar"]
+        })
+
+    wins = sum(1 for t in trades if t["pnl"] > 0)
+    return {
+        "start_balance": balance - sum(t["pnl"] for t in trades),
+        "end_balance": round(balance, 2),
+        "net_pnl": round(sum(t["pnl"] for t in trades), 2),
+        "total_trades": len(trades),
+        "winning_trades": wins,
+        "losing_trades": len(trades) - wins,
+        "win_rate": round(wins / len(trades) * 100, 1) if trades else 0,
+        "trades_list": trades,
+    }
+
+
+# ═══════════════════════════════════════════════════════════
+# КАК ПАРАМЕТРЫ ВЛИЯЮТ НА ТОРГОВЛЮ
+# ═══════════════════════════════════════════════════════════
+#
+# БАЛАНС (balance) — стартовый депозит. При обнулении → стоп.
+#
+# ПЛЕЧО (leverage) — размер позиции = position_size × leverage.
+#   margin = position_size × leverage → qty = margin / entry_price.
+#   Чем выше плечо, тем больше контрактов покупается.
+#
+# СУММА СДЕЛКИ (position_size) — базовая сумма в $ до плеча.
+#   $50 × 3× = $150 маржи на одну сделку.
+#
+# ПЕРИОД (period) — дней истории. Hammer требует МИНИМУМ
+#   7-14 дней на 5m, чтобы набрать достаточно паттернов.
+#   На коротких периодах сделок может не быть вообще.
+#
+# RR 1:2 — на каждые $1 риска цель $2 прибыли.
+#   При винрейте 50% матожидание положительное:
+#   E = 0.5×2 − 0.5×1 = +0.5R на сделку.
 #
 # ═══════════════════════════════════════════════════════════
 
