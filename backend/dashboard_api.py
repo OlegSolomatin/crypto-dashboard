@@ -1011,13 +1011,14 @@ def _save_backtest_report(job_id, params, report):
     return str(run_file), str(history_file)
 
 
-def _get_strategy_source(strategy: str, params: dict = None) -> str:
+def _get_strategy_source(strategy: str, params: dict = None, pair: str = "TONUSDT") -> str:
     """Возвращает исходный код стратегии как строку Python-скрипта."""
     # Build params comment block
     params_block = ""
     if params:
         params_block = (
             "# ── Параметры запуска (с сайта) ──\n"
+            f"# Пара:           {pair}\n"
             f"# Баланс:         ${params.get('balance', 'N/A')}\n"
             f"# Плечо:          {params.get('leverage', 'N/A')}×\n"
             f"# Сумма сделки:   ${params.get('position_size', 'N/A')}\n"
@@ -1026,7 +1027,7 @@ def _get_strategy_source(strategy: str, params: dict = None) -> str:
         )
     
     if strategy == "rsi":
-        return params_block + '''"""
+        code = params_block + '''"""
 RSI-стратегия (signal_v6) — бэктест на исторических свечах Binance.
 Стратегия: RSI < 30 → BUY, RSI > 75 → SELL.
 Управление рисками: Stop Loss 1.2%, Take Profit 2.4%, кулдаун 15 свечей.
@@ -1162,7 +1163,7 @@ if __name__ == "__main__":
     # В бэктестере candles загружаются через Binance API, затем вызывается run().
 
     # Пример: загрузка свечей (в реальном бэктестере — через Binance API)
-    # candles = fetch_candles(symbol="TONUSDT", interval="5m", days=period)
+    # candles = fetch_candles(symbol="{PAIR}", interval="5m", days=period)
 
     # Пример свечи: {"open":2.0, "high":2.01, "low":1.99, "close":2.005, "volume":12345}
     candles = []  # ← здесь будут исторические свечи с Binance
@@ -1180,10 +1181,11 @@ if __name__ == "__main__":
     print(f"Всего сделок:      {report['total_trades']}")
     print(f"Винрейт:           {report['win_rate']}%")
     print(f"Макс. просадка:    {report['max_drawdown']}%")
-'''
+'''.replace("{PAIR}", pair)
+        return code
 
     elif strategy == "swing":
-        return params_block + '''"""
+        code = params_block + '''"""
 SWING-стратегия — долгосрочная торговля с широкими SL/TP и трейлинг-стопом.
 RSI < 30 → BUY, RSI > 75 → SELL.
 Управление: Stop Loss 2.5%, Take Profit 5%, кулдаун 60 свечей, трейлинг 1%.
@@ -1308,7 +1310,7 @@ def run(candles, balance, leverage, position_size):
 
 if __name__ == "__main__":
     # Точка входа — так бэктестер вызывает стратегию
-    # candles = fetch_candles(symbol="TONUSDT", interval="1h", days=period)
+    # candles = fetch_candles(symbol="{PAIR}", interval="1h", days=period)
     candles = []
     report = run(
         candles=candles,
@@ -1317,10 +1319,11 @@ if __name__ == "__main__":
         position_size=position_size  # ← размер позиции
     )
     print(f"P&L: ${report['net_pnl']} | Сделок: {report['total_trades']} | Винрейт: {report['win_rate']}%")
-'''
+'''.replace("{PAIR}", pair)
+        return code
 
     elif strategy == "rsi_trailing":
-        return params_block + '''"""
+        code = params_block + '''"""
 RSI Трейлинг-стоп — RSI-стратегия БЕЗ фиксированного тейк-профита.
 Стоп-лосс (1.2%) скользит за ценой, когда она идёт в нашу сторону.
 Сделка закрывается ТОЛЬКО когда цена разворачивается и бьёт по стопу.
@@ -1451,7 +1454,7 @@ def run(candles, balance, leverage, position_size):
 
 if __name__ == "__main__":
     # Так бэктестер запускает стратегию
-    # candles = fetch_candles(symbol="TONUSDT", interval="5m", days=period)
+    # candles = fetch_candles(symbol="{PAIR}", interval="5m", days=period)
     candles = []
     report = run(
         candles=candles,
@@ -1460,7 +1463,8 @@ if __name__ == "__main__":
         position_size=position_size  # ← размер позиции
     )
     print(f"P&L: ${report['net_pnl']} | Сделок: {report['total_trades']} | Винрейт: {report['win_rate']}%")
-'''
+'''.replace("{PAIR}", pair)
+        return code
 
     else:
         return f"# Стратегия '{strategy}' — исходный код недоступен\\n"
@@ -1701,7 +1705,7 @@ class Handler(BaseHTTPRequestHandler):
                             "position_size": latest.get("position_size"),
                             "period": latest.get("period"),
                         }
-                    data["source_code"] = _get_strategy_source(strategy, latest_params)
+                    data["source_code"] = _get_strategy_source(strategy, latest_params, pair)
                     self._json(data)
                 except Exception:
                     self._json({"error": "Failed to read history file"})
