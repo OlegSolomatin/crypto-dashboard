@@ -1132,6 +1132,54 @@ def run(candles, balance, leverage, position_size):
         "max_drawdown": round(max(1 - e/max(equity[:i+1]) for i, e in enumerate(equity)), 4) * 100,
         "trades_list": trades,
     }
+
+
+# ═══════════════════════════════════════════════════════════
+# КАК ПАРАМЕТРЫ ВЛИЯЮТ НА ТОРГОВЛЮ
+# ═══════════════════════════════════════════════════════════
+#
+# БАЛАНС (balance) — стартовый депозит.
+#   Чем больше баланс → крупнее позиции → выше прибыль/убыток.
+#   Если баланс упадёт до 0, стратегия немедленно остановится.
+#
+# ПЛЕЧО (leverage) — кредитное плечо.
+#   Усиливает P&L: pnl = margin × (изменение_цены% × leverage).
+#   Плечо 1× = без плеча, 3× = утроенный риск/доход.
+#   Формула: margin = position_size × leverage.
+#
+# СУММА СДЕЛКИ (position_size) — размер одной позиции в $.
+#   Именно эта сумма умножается на leverage для расчёта маржи.
+#   $50 × плечо 3× = позиция на $150 (маржа $50).
+#
+# ПЕРИОД (period) — на сколько дней загружаются свечи.
+#   1 день ≈ 288 свечей на 5m, 7 дней ≈ 2016 свечей.
+#   Больше свечей = больше истории для RSI-сигналов.
+#
+# ═══════════════════════════════════════════════════════════
+
+if __name__ == "__main__":
+    # Этот блок показывает, как стратегия запускается с реальными параметрами.
+    # В бэктестере candles загружаются через Binance API, затем вызывается run().
+
+    # Пример: загрузка свечей (в реальном бэктестере — через Binance API)
+    # candles = fetch_candles(symbol="TONUSDT", interval="5m", days=period)
+
+    # Пример свечи: {"open":2.0, "high":2.01, "low":1.99, "close":2.005, "volume":12345}
+    candles = []  # ← здесь будут исторические свечи с Binance
+
+    report = run(
+        candles=candles,
+        balance=balance,           # ← стартовый депозит из настроек
+        leverage=leverage,         # ← кредитное плечо из настроек
+        position_size=position_size  # ← размер позиции из настроек
+    )
+
+    print(f"Стартовый баланс:  ${report['start_balance']}")
+    print(f"Конечный баланс:   ${report['end_balance']}")
+    print(f"Чистый P&L:        ${report['net_pnl']}")
+    print(f"Всего сделок:      {report['total_trades']}")
+    print(f"Винрейт:           {report['win_rate']}%")
+    print(f"Макс. просадка:    {report['max_drawdown']}%")
 '''
 
     elif strategy == "swing":
@@ -1238,6 +1286,37 @@ def run(candles, balance, leverage, position_size):
         "max_drawdown": round(max(1 - e/max(equity[:i+1]) for i, e in enumerate(equity)), 4) * 100,
         "trades_list": trades,
     }
+
+
+# ═══════════════════════════════════════════════════════════
+# КАК ПАРАМЕТРЫ ВЛИЯЮТ НА ТОРГОВЛЮ
+# ═══════════════════════════════════════════════════════════
+#
+# БАЛАНС (balance) — стартовый депозит. Если упадёт до 0 → стоп.
+#
+# ПЛЕЧО (leverage) — усиление P&L:
+#   margin = position_size × leverage
+#   При трейлинг-стопе плечо влияет на финальный P&L сделки.
+#
+# СУММА СДЕЛКИ (position_size) — базовый размер позиции до плеча.
+#
+# ПЕРИОД (period) — сколько дней истории загружается.
+#   SWING требует МНОГО данных: кулдаун 60 свечей требует
+#   минимум 2-3 дня на 1H, 7-14 дней на 4H.
+#
+# ═══════════════════════════════════════════════════════════
+
+if __name__ == "__main__":
+    # Точка входа — так бэктестер вызывает стратегию
+    # candles = fetch_candles(symbol="TONUSDT", interval="1h", days=period)
+    candles = []
+    report = run(
+        candles=candles,
+        balance=balance,           # ← стартовый депозит
+        leverage=leverage,         # ← кредитное плечо
+        position_size=position_size  # ← размер позиции
+    )
+    print(f"P&L: ${report['net_pnl']} | Сделок: {report['total_trades']} | Винрейт: {report['win_rate']}%")
 '''
 
     elif strategy == "rsi_trailing":
@@ -1348,6 +1427,39 @@ def run(candles, balance, leverage, position_size):
         "max_drawdown": round(max(1 - e/max(equity[:i+1]) for i, e in enumerate(equity)), 4) * 100,
         "trades_list": trades,
     }
+
+
+# ═══════════════════════════════════════════════════════════
+# КАК ПАРАМЕТРЫ ВЛИЯЮТ НА ТОРГОВЛЮ
+# ═══════════════════════════════════════════════════════════
+#
+# БАЛАНС (balance) — стартовый депозит.
+#   При обнулении баланса стратегия останавливается.
+#
+# ПЛЕЧО (leverage) — усиливает P&L каждой сделки.
+#   margin = position_size × leverage.
+#   Трейлинг-стоп скользит за ценой, но финальный P&L
+#   умножается на плечо: pnl = margin × (движение_цены% × leverage).
+#
+# СУММА СДЕЛКИ (position_size) — базовая сумма в $ до плеча.
+#
+# ПЕРИОД (period) — дней истории для загрузки свечей.
+#   Трейлинг-стоп активируется после +0.5% движения.
+#   Нужно достаточно свечей, чтобы цена успела дойти до активации.
+#
+# ═══════════════════════════════════════════════════════════
+
+if __name__ == "__main__":
+    # Так бэктестер запускает стратегию
+    # candles = fetch_candles(symbol="TONUSDT", interval="5m", days=period)
+    candles = []
+    report = run(
+        candles=candles,
+        balance=balance,           # ← стартовый депозит
+        leverage=leverage,         # ← кредитное плечо
+        position_size=position_size  # ← размер позиции
+    )
+    print(f"P&L: ${report['net_pnl']} | Сделок: {report['total_trades']} | Винрейт: {report['win_rate']}%")
 '''
 
     else:
