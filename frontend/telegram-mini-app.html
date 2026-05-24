@@ -3,7 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hermes Agent</title>
+<title>MOE — Mini App</title>
+<meta name="theme-color" content="#08081c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MOE">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/svg+xml" href="/icon-dark.svg">
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-dark-192.png">
+<link rel="apple-touch-icon" href="/icon-dark-180.png" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/icon-light-180.png" media="(prefers-color-scheme: light)">
 <style>
 :root{--bg:#08081c;--accent:#7c5cfc;--green:#10b981;--tile:#0f0f2e;--border:rgba(124,92,252,0.15);--text:#e0e0f0;--muted:#8888aa}
 [data-theme="light"]{--bg:#f4f4f9;--tile:#ffffff;--border:rgba(124,92,252,0.15);--text:#1a1a2e;--muted:#6b7280}
@@ -111,5 +120,6 @@ fetch('https://api.open-meteo.com/v1/forecast?latitude=55.08&longitude=38.78&cur
   })
   .catch(()=>{});
 </script>
+<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{})}</script>
 </body>
 </html>

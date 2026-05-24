@@ -422,7 +422,15 @@ class BacktestRunner:
     
     @staticmethod
     def run(job_id, params):
-        """Fetch candles and run strategy."""
+        """Fetch candles and run strategy. Routes to LiveRunner for live mode."""
+        bt = _backtests[job_id]
+        mode = params.get("mode", "history")
+        
+        if mode == "live":
+            from backtest_live import LiveRunner
+            LiveRunner.run(job_id, params, _backtests)
+            return
+        
         import time as _time
         bt = _backtests[job_id]
         bt["cancelled"] = False
@@ -1003,6 +1011,349 @@ def _save_backtest_report(job_id, params, report):
     return str(run_file), str(history_file)
 
 
+def _get_strategy_source(strategy: str, params: dict = None) -> str:
+    """Возвращает исходный код стратегии как строку Python-скрипта."""
+    # Build params comment block
+    params_block = ""
+    if params:
+        params_block = (
+            "# ── Параметры запуска (с сайта) ──\n"
+            f"# Баланс:         ${params.get('balance', 'N/A')}\n"
+            f"# Плечо:          {params.get('leverage', 'N/A')}×\n"
+            f"# Сумма сделки:   ${params.get('position_size', 'N/A')}\n"
+            f"# Период:         {params.get('period', 'N/A')} дн.\n"
+            "#\n\n"
+        )
+    
+    if strategy == "rsi":
+        return params_block + '''"""
+RSI-стратегия (signal_v6) — бэктест на исторических свечах Binance.
+Стратегия: RSI < 30 → BUY, RSI > 75 → SELL.
+Управление рисками: Stop Loss 1.2%, Take Profit 2.4%, кулдаун 15 свечей.
+"""
+
+{params_block}import time
+import json
+
+# ── Параметры ──
+SL_PCT   = 0.012   # Стоп-лосс 1.2%
+TP_PCT   = 0.024   # Тейк-профит 2.4%
+COOLDOWN = 15      # Минимальное расстояние между сделками (в свечах)
+
+def run(candles, balance, leverage, position_size):
+    """Прогон стратегии на массиве свечей [{open,high,low,close,volume},...]"""
+    closes = [c["close"] for c in candles]
+    highs  = [c["high"]  for c in candles]
+    lows   = [c["low"]   for c in candles]
+
+    trades = []
+    equity = [balance]
+    last_trade_bar = -COOLDOWN
+    position = None  # {type, entry, sl, tp, bar, margin}
+
+    for i in range(50, len(closes)):
+        # Баланс обнулён → остановка
+        if balance <= 0:
+            break
+
+        # ── Расчёт RSI(14) ──
+        window = closes[i-14:i+1]
+        gains = sum(max(window[j]-window[j-1], 0) for j in range(1, len(window)))
+        losses = sum(max(window[j-1]-window[j], 0) for j in range(1, len(window)))
+        rsi = 100 - (100 / (1 + gains/losses)) if losses > 0 else 100
+
+        cur = closes[i]
+
+        # ── Проверка открытой позиции ──
+        if position:
+            if position["type"] == "BUY":
+                if lows[i] <= position["sl"]:
+                    exit_px = position["sl"]; reason = "STOP_LOSS"
+                elif highs[i] >= position["tp"]:
+                    exit_px = position["tp"]; reason = "TAKE_PROFIT"
+                else:
+                    continue
+            else:  # SELL
+                if highs[i] >= position["sl"]:
+                    exit_px = position["sl"]; reason = "STOP_LOSS"
+                elif lows[i] <= position["tp"]:
+                    exit_px = position["tp"]; reason = "TAKE_PROFIT"
+                else:
+                    continue
+
+            pnl_pct = (cur - exit_px) / position["entry"] * leverage
+            if position["type"] == "SELL":
+                pnl_pct = -pnl_pct
+            pnl = position["margin"] * pnl_pct / 100
+            balance += pnl
+            trades.append({
+                "type": position["type"], "entry": position["entry"],
+                "exit": exit_px, "pnl": round(pnl, 4),
+                "pnl_pct": round(pnl_pct, 2), "reason": reason,
+                "bars": i - position["bar"]
+            })
+            position = None
+            equity.append(balance)
+            continue
+
+        # ── Кулдаун ──
+        if i - last_trade_bar < COOLDOWN:
+            equity.append(balance)
+            continue
+
+        # ── Генерация сигнала ──
+        if rsi < 30:
+            side = "BUY"
+            sl = cur * (1 - SL_PCT)
+            tp = cur * (1 + TP_PCT)
+        elif rsi > 75:
+            side = "SELL"
+            sl = cur * (1 + SL_PCT)
+            tp = cur * (1 - TP_PCT)
+        else:
+            equity.append(balance)
+            continue
+
+        margin = position_size * leverage
+        position = {"type": side, "entry": cur, "sl": sl, "tp": tp, "bar": i, "margin": margin}
+        last_trade_bar = i
+        equity.append(balance)
+
+    # ── Итоговый отчёт ──
+    wins = sum(1 for t in trades if t["pnl"] > 0)
+    return {
+        "start_balance": equity[0],
+        "end_balance": round(balance, 2),
+        "net_pnl": round(balance - equity[0], 2),
+        "total_trades": len(trades),
+        "winning_trades": wins,
+        "losing_trades": len(trades) - wins,
+        "win_rate": round(wins / len(trades) * 100, 1) if trades else 0,
+        "max_drawdown": round(max(1 - e/max(equity[:i+1]) for i, e in enumerate(equity)), 4) * 100,
+        "trades_list": trades,
+    }
+'''
+
+    elif strategy == "swing":
+        return params_block + '''"""
+SWING-стратегия — долгосрочная торговля с широкими SL/TP и трейлинг-стопом.
+RSI < 30 → BUY, RSI > 75 → SELL.
+Управление: Stop Loss 2.5%, Take Profit 5%, кулдаун 60 свечей, трейлинг 1%.
+"""
+import time
+
+SL_PCT    = 0.025   # Стоп-лосс 2.5%
+TP_PCT    = 0.05    # Тейк-профит 5%
+TRAIL_PCT = 0.01    # Трейлинг-стоп: 1% от максимума
+COOLDOWN  = 60      # Кулдаун между сделками
+
+def run(candles, balance, leverage, position_size):
+    closes = [c["close"] for c in candles]
+    highs  = [c["high"]  for c in candles]
+    lows   = [c["low"]   for c in candles]
+
+    trades = []
+    equity = [balance]
+    last_trade_bar = -COOLDOWN
+    position = None  # {type, entry, sl, tp, bar, margin, trail_high}
+
+    for i in range(50, len(closes)):
+        if balance <= 0:
+            break
+
+        window = closes[i-14:i+1]
+        gains = sum(max(window[j]-window[j-1], 0) for j in range(1, len(window)))
+        losses = sum(max(window[j-1]-window[j], 0) for j in range(1, len(window)))
+        rsi = 100 - (100 / (1 + gains/losses)) if losses > 0 else 100
+
+        cur = closes[i]
+
+        if position:
+            # Трейлинг-стоп
+            if position["type"] == "BUY" and highs[i] > position.get("trail_high", position["entry"]):
+                position["trail_high"] = highs[i]
+                position["sl"] = max(position["sl"], highs[i] * (1 - TRAIL_PCT))
+
+            if position["type"] == "BUY":
+                if lows[i] <= position["sl"]:
+                    exit_px = position["sl"]; reason = "TRAILING_STOP"
+                elif highs[i] >= position["tp"]:
+                    exit_px = position["tp"]; reason = "TAKE_PROFIT"
+                else:
+                    equity.append(balance); continue
+            else:
+                if highs[i] >= position["sl"]:
+                    exit_px = position["sl"]; reason = "TRAILING_STOP"
+                elif lows[i] <= position["tp"]:
+                    exit_px = position["tp"]; reason = "TAKE_PROFIT"
+                else:
+                    equity.append(balance); continue
+
+            pnl_pct = (cur - exit_px) / position["entry"] * leverage
+            if position["type"] == "SELL":
+                pnl_pct = -pnl_pct
+            pnl = position["margin"] * pnl_pct / 100
+            balance += pnl
+            trades.append({
+                "type": position["type"], "entry": position["entry"],
+                "exit": exit_px, "pnl": round(pnl, 4),
+                "pnl_pct": round(pnl_pct, 2), "reason": reason,
+                "bars": i - position["bar"]
+            })
+            position = None
+            equity.append(balance)
+            continue
+
+        if i - last_trade_bar < COOLDOWN:
+            equity.append(balance); continue
+
+        if rsi < 30:
+            side = "BUY"
+            sl = cur * (1 - SL_PCT)
+            tp = cur * (1 + TP_PCT)
+        elif rsi > 75:
+            side = "SELL"
+            sl = cur * (1 + SL_PCT)
+            tp = cur * (1 - TP_PCT)
+        else:
+            equity.append(balance); continue
+
+        margin = position_size * leverage
+        position = {
+            "type": side, "entry": cur, "sl": sl, "tp": tp,
+            "bar": i, "margin": margin, "trail_high": cur
+        }
+        last_trade_bar = i
+        equity.append(balance)
+
+    wins = sum(1 for t in trades if t["pnl"] > 0)
+    return {
+        "start_balance": equity[0],
+        "end_balance": round(balance, 2),
+        "net_pnl": round(balance - equity[0], 2),
+        "total_trades": len(trades),
+        "winning_trades": wins,
+        "losing_trades": len(trades) - wins,
+        "win_rate": round(wins / len(trades) * 100, 1) if trades else 0,
+        "max_drawdown": round(max(1 - e/max(equity[:i+1]) for i, e in enumerate(equity)), 4) * 100,
+        "trades_list": trades,
+    }
+'''
+
+    elif strategy == "rsi_trailing":
+        return params_block + '''"""
+RSI Трейлинг-стоп — RSI-стратегия БЕЗ фиксированного тейк-профита.
+Стоп-лосс (1.2%) скользит за ценой, когда она идёт в нашу сторону.
+Сделка закрывается ТОЛЬКО когда цена разворачивается и бьёт по стопу.
+Активация трейлинга после +0.5% в профите.
+"""
+import time
+
+SL_PCT       = 0.012   # Начальный стоп-лосс 1.2%
+TRAIL_ACTIVE = 0.005   # Активация трейлинга после +0.5%
+COOLDOWN     = 15      # Кулдаун между сделками
+
+def run(candles, balance, leverage, position_size):
+    closes = [c["close"] for c in candles]
+    highs  = [c["high"]  for c in candles]
+    lows   = [c["low"]   for c in candles]
+
+    trades = []
+    equity = [balance]
+    last_trade_bar = -COOLDOWN
+    position = None  # {type, entry, sl, bar, margin, trailing_active, trail_high}
+
+    for i in range(50, len(closes)):
+        if balance <= 0:
+            break
+
+        window = closes[i-14:i+1]
+        gains = sum(max(window[j]-window[j-1], 0) for j in range(1, len(window)))
+        losses = sum(max(window[j-1]-window[j], 0) for j in range(1, len(window)))
+        rsi = 100 - (100 / (1 + gains/losses)) if losses > 0 else 100
+
+        cur = closes[i]
+
+        if position:
+            # Активация трейлинга
+            if not position.get("trailing_active"):
+                if position["type"] == "BUY" and cur >= position["entry"] * (1 + TRAIL_ACTIVE):
+                    position["trailing_active"] = True
+                    position["trail_high"] = cur
+                elif position["type"] == "SELL" and cur <= position["entry"] * (1 - TRAIL_ACTIVE):
+                    position["trailing_active"] = True
+                    position["trail_low"] = cur
+
+            # Обновление трейлинг-стопа
+            if position.get("trailing_active"):
+                if position["type"] == "BUY" and highs[i] > position.get("trail_high", position["entry"]):
+                    position["trail_high"] = highs[i]
+                    position["sl"] = highs[i] * (1 - SL_PCT)
+                elif position["type"] == "SELL" and lows[i] < position.get("trail_low", position["entry"]):
+                    position["trail_low"] = lows[i]
+                    position["sl"] = lows[i] * (1 + SL_PCT)
+
+            # Проверка стопа (тейк-профита НЕТ)
+            if position["type"] == "BUY" and lows[i] <= position["sl"]:
+                exit_px = position["sl"]; reason = "TRAILING_STOP"
+            elif position["type"] == "SELL" and highs[i] >= position["sl"]:
+                exit_px = position["sl"]; reason = "TRAILING_STOP"
+            else:
+                equity.append(balance); continue
+
+            pnl_pct = (cur - exit_px) / position["entry"] * leverage
+            if position["type"] == "SELL":
+                pnl_pct = -pnl_pct
+            pnl = position["margin"] * pnl_pct / 100
+            balance += pnl
+            trades.append({
+                "type": position["type"], "entry": position["entry"],
+                "exit": exit_px, "pnl": round(pnl, 4),
+                "pnl_pct": round(pnl_pct, 2), "reason": reason,
+                "bars": i - position["bar"]
+            })
+            position = None
+            equity.append(balance)
+            continue
+
+        if i - last_trade_bar < COOLDOWN:
+            equity.append(balance); continue
+
+        if rsi < 30:
+            side = "BUY"
+            sl = cur * (1 - SL_PCT)
+        elif rsi > 75:
+            side = "SELL"
+            sl = cur * (1 + SL_PCT)
+        else:
+            equity.append(balance); continue
+
+        margin = position_size * leverage
+        position = {
+            "type": side, "entry": cur, "sl": sl,
+            "bar": i, "margin": margin, "trailing_active": False
+        }
+        last_trade_bar = i
+        equity.append(balance)
+
+    wins = sum(1 for t in trades if t["pnl"] > 0)
+    return {
+        "start_balance": equity[0],
+        "end_balance": round(balance, 2),
+        "net_pnl": round(balance - equity[0], 2),
+        "total_trades": len(trades),
+        "winning_trades": wins,
+        "losing_trades": len(trades) - wins,
+        "win_rate": round(wins / len(trades) * 100, 1) if trades else 0,
+        "max_drawdown": round(max(1 - e/max(equity[:i+1]) for i, e in enumerate(equity)), 4) * 100,
+        "trades_list": trades,
+    }
+'''
+
+    else:
+        return f"# Стратегия '{strategy}' — исходный код недоступен\\n"
+
+
 def _compute_history_summary(reports):
     """Сводка по всем запускам в истории."""
     if not reports:
@@ -1227,7 +1578,19 @@ class Handler(BaseHTTPRequestHandler):
             fpath = Path("/home/oleg/workspace/crypto-ton/backtests") / f"backtest_{strategy}_{pair}_{tf}.json"
             if fpath.exists():
                 try:
-                    self._json(json.loads(fpath.read_text()))
+                    data = json.loads(fpath.read_text())
+                    # Extract params from latest run for source code
+                    latest_params = {}
+                    if data.get("runs"):
+                        latest = data["runs"][-1]  # last run (newest after reversal in JS)
+                        latest_params = {
+                            "balance": latest.get("balance"),
+                            "leverage": latest.get("leverage"),
+                            "position_size": latest.get("position_size"),
+                            "period": latest.get("period"),
+                        }
+                    data["source_code"] = _get_strategy_source(strategy, latest_params)
+                    self._json(data)
                 except Exception:
                     self._json({"error": "Failed to read history file"})
             else:
