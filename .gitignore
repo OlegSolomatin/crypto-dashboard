@@ -20,3 +20,6 @@ Thumbs.db
 # Hermes cache
 .hermes/
 image_cache/
+
+# Database files (large, auto-generated)
+*.db
