@@ -7,7 +7,7 @@ JSON API для дашборда.
 Запуск: python3 dashboard_api.py [порт]   (по умолчанию 8889)
 """
 
-import sqlite3, json, sys, math, urllib.request, urllib.error
+import sqlite3, json, sys, math, urllib.request, urllib.error, os
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -2977,6 +2977,25 @@ class Handler(BaseHTTPRequestHandler):
                     self._json({"error": f"Backtest not running (status: {bt.get('status')})"})
             else:
                 self._json({"error": "Unknown backtest ID"})
+        elif path == '/api/balances/deposit':
+            try:
+                length = int(self.headers.get('Content-Length', 0))
+                body = json.loads(self.rfile.read(length)) if length > 0 else {}
+                amount = float(body.get("amount", 0))
+                state_path = os.path.expanduser("~/.hermes/balances_state.json")
+                state = {}
+                try:
+                    with open(state_path) as sf:
+                        state = json.load(sf)
+                except:
+                    pass
+                state["openrouter_deposited"] = state.get("openrouter_deposited", 0) + amount
+                os.makedirs(os.path.dirname(state_path), exist_ok=True)
+                with open(state_path, "w") as sf:
+                    json.dump(state, sf)
+                self._json({"ok": True, "total_deposited": state["openrouter_deposited"]})
+            except Exception as e:
+                self._json({"error": str(e)})
         else:
             self.send_response(404)
             self.end_headers()
@@ -3107,27 +3126,6 @@ class Handler(BaseHTTPRequestHandler):
 
         elif path == '/api/balances':
             self._json(get_balances())
-
-        elif path == '/api/balances/deposit':
-            # Update OpenRouter deposited amount
-            try:
-                length = int(self.headers.get('Content-Length', 0))
-                body = json.loads(self.rfile.read(length)) if length > 0 else {}
-                amount = float(body.get("amount", 0))
-                state_path = os.path.expanduser("~/.hermes/balances_state.json")
-                state = {}
-                try:
-                    with open(state_path) as sf:
-                        state = json.load(sf)
-                except:
-                    pass
-                state["openrouter_deposited"] = state.get("openrouter_deposited", 0) + amount
-                os.makedirs(os.path.dirname(state_path), exist_ok=True)
-                with open(state_path, "w") as sf:
-                    json.dump(state, sf)
-                self._json({"ok": True, "total_deposited": state["openrouter_deposited"]})
-            except Exception as e:
-                self._json({"error": str(e)})
 
         elif path == '/' or path == '/dashboard':
             html = Path("/home/oleg/workspace/crypto-ton/dashboard.html").read_text()
