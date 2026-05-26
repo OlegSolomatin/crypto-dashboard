@@ -2864,10 +2864,10 @@ def get_balances():
                 result.append({
                     "service": "OpenRouter",
                     "icon": "🔗",
-                    "balance": f"${data.get('usage', 0):.2f}",
-                    "usage": f"${data.get('usage', 0):.2f}",
+                    "balance": "∞",                    # prepaid — безлимитный ключ
+                    "usage": f"${data.get('usage', 0):.2f}",  # сколько потрачено
                     "is_free": data.get("is_free_tier", True),
-                    "remaining": "∞",  # prepaid — лимита нет
+                    "remaining": "∞",
                     "requests_today": data.get("usage_daily", 0),
                     "updated": now,
                 })
@@ -2891,8 +2891,9 @@ def get_balances():
                     "service": "DeepSeek",
                     "icon": "🐋",
                     "balance": f"${total:.2f}",
-                    "usage": f"${float(infos[0].get('topped_up_balance', 0)):.2f}" if infos else "$0",
+                    "usage": "—",                     # API DeepSeek не отдаёт usage
                     "is_free": total < 0.01,
+                    "remaining": "—",
                     "requests_today": 0,
                     "updated": now,
                 })
