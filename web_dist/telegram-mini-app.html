@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hermes Agent</title>
+<style>
+:root{--bg:#08081c;--accent:#7c5cfc;--green:#10b981;--tile:#0f0f2e;--border:rgba(124,92,252,0.15);--text:#e0e0f0;--muted:#8888aa}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:16px}
+header{width:100%;max-width:420px;display:flex;justify-content:space-between;align-items:center;padding:12px 0;margin-bottom:24px}
+.logo{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:600}
+.logo-icon{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#5b3fd4);display:flex;align-items:center;justify-content:center;font-size:20px}
+.time-block{text-align:right;font-size:13px;color:var(--muted)}
+.time-block .clock{font-size:16px;font-weight:600;color:var(--text)}
+.weather{font-size:12px;color:var(--muted);margin-top:2px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;width:100%;max-width:420px}
+.tile{aspect-ratio:1/1;max-height:156px;background:var(--tile);border:1px solid var(--border);border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;text-decoration:none;color:var(--text);transition:all .2s;position:relative;overflow:hidden;text-align:center;padding:12px}
+.tile:hover{background:#14143a;border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 32px rgba(124,92,252,0.15)}
+.tile-icon{font-size:36px;margin-bottom:8px}
+.tile-title{font-size:15px;font-weight:600;margin-bottom:4px}
+.tile-sub{font-size:11px;color:var(--muted)}
+.tile-badge{position:absolute;top:10px;right:10px;font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600}
+.badge-ai{background:rgba(124,92,252,0.15);color:var(--accent)}
+.badge-trade{background:rgba(16,185,129,0.12);color:var(--green)}
+.badge-media{background:rgba(239,68,68,0.12);color:#f87171}
+.badge-api{background:rgba(124,92,252,0.12);color:var(--accent)}
+footer{width:100%;max-width:420px;text-align:center;margin-top:32px;font-size:11px;color:var(--muted)}
+footer a{color:var(--accent);text-decoration:none}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.tile{animation:fadeIn .4s ease both}
+.tile:nth-child(2){animation-delay:.1s}
+.tile:nth-child(3){animation-delay:.2s}
+.tile:nth-child(4){animation-delay:.3s}
+.tile:nth-child(5){animation-delay:.4s}
+.tile:nth-child(6){animation-delay:.5s}
+@media (min-width:769px){
+  .grid{grid-template-columns:repeat(2,200px);justify-content:center;max-width:440px}
+  .tile{max-height:200px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    <span>HermesAI</span>
+  </div>
+  <div class="time-block">
+    <div class="clock" id="clock">--:--</div>
+    <div class="weather" id="weather">—°C</div>
+  </div>
+</header>
+
+<div class="grid">
+  <a class="tile" href="/dashboard.html">
+    <span class="tile-badge badge-trade">LIVE</span>
+    <span class="tile-icon">📊</span>
+    <span class="tile-title">Trading</span>
+    <span class="tile-sub">Дашборд · Сделки · Сигналы</span>
+  </a>
+  <a class="tile" href="/brain.html">
+    <span class="tile-badge badge-ai">AI</span>
+    <span class="tile-icon">🧠</span>
+    <span class="tile-title">Второй мозг</span>
+    <span class="tile-sub">Заметки · Граф знаний</span>
+  </a>
+  <a class="tile" href="/balances.html">
+    <span class="tile-badge badge-api">API</span>
+    <span class="tile-icon">💳</span>
+    <span class="tile-title">Балансы</span>
+    <span class="tile-sub">OpenRouter · DeepSeek</span>
+  </a>
+  <a class="tile" href="https://hermes.pfumiko.ru" target="_blank">
+    <span class="tile-badge badge-ai">AI</span>
+    <span class="tile-icon">🤖</span>
+    <span class="tile-title">AI Агент</span>
+    <span class="tile-sub">Чат с Hermes</span>
+  </a>
+  <a class="tile" href="https://jellyfin.pfumiko.ru" target="_blank">
+    <span class="tile-badge badge-media">NEW</span>
+    <span class="tile-icon">🎬</span>
+    <span class="tile-title">Кинотеатр</span>
+    <span class="tile-sub">Фильмы · Сериалы</span>
+  </a>
+  <a class="tile" href="https://music.pfumiko.ru" target="_blank">
+    <span class="tile-badge badge-media">NEW</span>
+    <span class="tile-icon">🎵</span>
+    <span class="tile-title">Музыка</span>
+    <span class="tile-sub">Вся коллекция · Онлайн</span>
+  </a>
+</div>
+
+<footer>
+  @pfumiko_hermesai_agent_bot
+</footer>
+
+<script>
+function updateTime(){
+  const now=new Date();
+  const msk=new Date(now.toLocaleString('en-US',{timeZone:'Europe/Moscow'}));
+  const h=msk.getHours().toString().padStart(2,'0');
+  const m=msk.getMinutes().toString().padStart(2,'0');
+  document.getElementById('clock').textContent=h+':'+m+' МСК';
+}
+updateTime();setInterval(updateTime,30000);
+
+fetch('https://api.open-meteo.com/v1/forecast?latitude=55.08&longitude=38.78&current=temperature_2m&timezone=Europe/Moscow')
+  .then(r=>r.json())
+  .then(d=>{
+    const t=d.current?.temperature_2m;
+    if(t!==undefined)document.getElementById('weather').textContent=(t>0?'+':'')+Math.round(t)+'°C Коломна';
+  })
+  .catch(()=>{});
+</script>
+</body>
+</html>

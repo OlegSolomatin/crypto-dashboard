@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MOE — Балансы API</title>
+<meta name="apple-mobile-web-app-title" content="MOE">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon-dark.svg" type="image/svg+xml" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="/icon-light.svg" type="image/svg+xml" media="(prefers-color-scheme: light)">
+<link rel="apple-touch-icon" href="/icon-light-180.png">
+<style>
+:root{--bg:#08081c;--accent:#7c5cfc;--green:#10b981;--tile:#0f0f2e;--border:rgba(124,92,252,0.15);--text:#e0e0f0;--muted:#8888aa}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:16px}
+.container{max-width:480px;margin:0 auto}
+
+/* ── Header ── */
+.page-header{display:flex;align-items:center;gap:12px;margin-bottom:24px;padding:12px 0}
+.back-btn{width:36px;height:36px;border-radius:10px;background:var(--tile);border:1px solid var(--border);color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer;text-decoration:none;font-size:18px;transition:all .15s}
+.back-btn:hover{background:#14143a;border-color:var(--accent)}
+.page-title{font-size:18px;font-weight:600}
+.page-sub{font-size:12px;color:var(--muted);margin-top:2px}
+
+/* ── Sort bar ── */
+.sort-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sort-label{font-size:13px;color:var(--muted);font-weight:500}
+.sort-btn{background:var(--tile);border:1px solid var(--border);color:var(--muted);padding:4px 14px;border-radius:8px;font-size:12px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:4px}
+.sort-btn:hover{color:var(--text);border-color:var(--accent)}
+.sort-btn .arrow{font-size:10px}
+
+/* ── Balance cards ── */
+.balance-card{background:var(--tile);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:10px;transition:all .15s}
+.balance-card:hover{border-color:var(--accent);background:#14143a}
+.card-top{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.card-icon{font-size:28px;width:44px;height:44px;border-radius:12px;background:rgba(124,92,252,0.08);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.card-name{font-size:16px;font-weight:600}
+.card-badge{font-size:10px;padding:2px 8px;border-radius:4px;font-weight:600;margin-left:auto}
+.badge-ok{background:rgba(16,185,129,0.12);color:var(--green)}
+.badge-warn{background:rgba(239,68,68,0.12);color:#f87171}
+
+.card-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{text-align:center;padding:8px 4px;background:rgba(124,92,252,0.04);border-radius:8px}
+.stat-val{font-size:16px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}
+.stat-label{font-size:10px;color:var(--muted);margin-top:2px}
+
+/* ── Update time ── */
+.update-bar{display:flex;align-items:center;justify-content:space-between;margin-top:16px;font-size:11px;color:var(--muted)}
+.refresh-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:3px 10px;border-radius:6px;font-size:11px;cursor:pointer;transition:all .15s}
+.refresh-btn:hover{color:var(--text);border-color:var(--accent)}
+
+/* ── Loading ── */
+.loading{text-align:center;padding:48px 16px;color:var(--muted)}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error{text-align:center;padding:48px 16px;color:#f87171}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.balance-card{animation:fadeIn .3s ease both}
+.balance-card:nth-child(2){animation-delay:.1s}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="page-header">
+  <a class="back-btn" href="/" title="На главную">←</a>
+  <div>
+    <div class="page-title">💳 Балансы API</div>
+    <div class="page-sub">OpenRouter · DeepSeek</div>
+  </div>
+</div>
+
+<div class="sort-bar">
+  <span class="sort-label">Сортировка по балансу</span>
+  <button class="sort-btn" onclick="toggleSort()">
+    <span id="sortDir">↓ Убыв.</span>
+    <span class="arrow">↕</span>
+  </button>
+</div>
+
+<div id="balancesList">
+  <div class="loading">
+    <div class="spinner"></div>
+    <div>Загрузка...</div>
+  </div>
+</div>
+
+<div class="update-bar">
+  <span>Обновлено: <span id="updatedAt">—</span></span>
+  <button class="refresh-btn" onclick="loadBalances()">🔄 Обновить</button>
+</div>
+
+</div>
+
+<script>
+let sortDir = -1; // -1 = desc (больше → выше)
+
+async function loadBalances(){
+  const el = document.getElementById('balancesList');
+  try {
+    const r = await fetch('/api/balances?_=' + Date.now());
+    const d = await r.json();
+    renderBalances(d.balances || [], d.updated);
+  } catch(e) {
+    el.innerHTML = '<div class="error">⚠️ Не удалось загрузить балансы<br><small style="color:var(--muted)">Проверьте подключение</small></div>';
+  }
+}
+
+function renderBalances(balances, updated){
+  const el = document.getElementById('balancesList');
+  if (!balances.length) {
+    el.innerHTML = '<div class="loading" style="color:var(--muted)">Нет данных</div>';
+    return;
+  }
+
+  // Sort
+  balances.sort((a, b) => {
+    const va = parseFloat(a.balance.replace(/[^0-9.]/g, '')) || 0;
+    const vb = parseFloat(b.balance.replace(/[^0-9.]/g, '')) || 0;
+    return (va - vb) * sortDir;
+  });
+
+  let html = '';
+  for (const b of balances) {
+    const balanceNum = parseFloat(b.balance.replace(/[^0-9.]/g, '')) || 0;
+    const statusClass = balanceNum > 1 ? 'badge-ok' : 'badge-warn';
+    const statusText = balanceNum > 1 ? 'OK' : 'LOW';
+    const remaining = b.remaining !== undefined ? b.remaining : '—';
+    const reqs = b.requests_today !== undefined ? `$${b.requests_today.toFixed(2)}` : '—';
+    const usage = b.usage || '—';
+
+    html += `<div class="balance-card">
+      <div class="card-top">
+        <div class="card-icon">${b.icon || '💳'}</div>
+        <div class="card-name">${b.service}</div>
+        <span class="card-badge ${statusClass}">${statusText}</span>
+      </div>
+      <div class="card-stats">
+        <div class="stat">
+          <div class="stat-val">${b.balance}</div>
+          <div class="stat-label">Баланс</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val">${usage}</div>
+          <div class="stat-label">Использовано</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val">${remaining}</div>
+          <div class="stat-label">Осталось запр.</div>
+        </div>
+      </div>
+    </div>`;
+  }
+  el.innerHTML = html;
+
+  // Update time
+  const ago = updated ? timeAgo(updated) : '—';
+  document.getElementById('updatedAt').textContent = ago;
+}
+
+function toggleSort(){
+  sortDir *= -1;
+  document.getElementById('sortDir').textContent = sortDir === -1 ? '↓ Убыв.' : '↑ Возр.';
+  loadBalances();
+}
+
+function timeAgo(iso){
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diff < 60) return 'сейчас';
+  if (diff < 3600) return Math.floor(diff/60) + ' мин. назад';
+  if (diff < 86400) return Math.floor(diff/3600) + ' ч. назад';
+  return Math.floor(diff/86400) + ' дн. назад';
+}
+
+// Auto-load + refresh every 60s
+loadBalances();
+setInterval(loadBalances, 60000);
+</script>
+</body>
+</html>

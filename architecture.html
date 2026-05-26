@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TON Trading System — Architecture</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  body { background: #0d1117; color: #c9d1d9; font-family: -apple-system, sans-serif; 
+         display: flex; justify-content: center; padding: 40px; }
+  .container { max-width: 900px; width: 100%; }
+  h1 { text-align: center; color: #58a6ff; }
+  .mermaid { background: #0d1117; }
+  .legend { display: flex; gap: 20px; flex-wrap: wrap; margin: 30px 0; justify-content: center; }
+  .legend-item { display: flex; align-items: center; gap: 8px; }
+  .legend-box { width: 24px; height: 16px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🏗️ TON Trading System v5</h1>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-box" style="background:#1a1a2e;border:1px solid #16213e"></div> Внешние API</div>
+    <div class="legend-item"><div class="legend-box" style="background:#0f3460"></div> Процессы (cron)</div>
+    <div class="legend-item"><div class="legend-box" style="background:#16213e"></div> Базы данных</div>
+    <div class="legend-item"><div class="legend-box" style="background:#533483"></div> Алерты/Защита</div>
+    <div class="legend-item"><div class="legend-box" style="background:#1a1a2e;border:2px solid #e94560"></div> Пользователь</div>
+  </div>
+
+  <div class="mermaid">
+graph TD
+    subgraph EXTERNAL["🌐 ВНЕШНИЕ API (бесплатные, без ключей)"]
+        BYBIT["Bybit API\nЦена TON/BTC"]
+        COINGECKO["CoinGecko\nMarket Cap, FDV, Supply"]
+        TONCENTER["Toncenter\nБлокчейн, мастерчейн"]
+        TELEGRAM_API["Telegram API\nОтправка сообщений"]
+    end
+
+    subgraph MONITORING["📡 МОНИТОРИНГ — каждую минуту"]
+        MONITOR["monitor.py\nСбор цены TON/USDT"]
+        PRICES[("💾 data.db\n1,253+ записей\nТаблица: prices")]
+    end
+
+    subgraph ONCHAIN_BLOCK["🔍 ОНЧЕЙН — каждый час"]
+        ONCHAIN["onchain_v3.py\nMarket Cap, NVT, корреляция BTC\nСкорость блоков, FDV/MCap"]
+        ONCHAIN_DB[("💾 onchain.db\n18+ записей\nNVT, BTC corr, bpm")]
+    end
+
+    subgraph ALERTS["🚨 АЛЕРТЫ — каждые 5 мин"]
+        ALERT["alert.py\nРезкие движения цены >3%"]
+    end
+
+    subgraph SIGNALS["📊 СИГНАЛЫ V5 — каждые 5 мин"]
+        SIGNAL["signal_v5.py\nRSI + MACD + Bollinger\nОнчейн-фильтры NVT/BTC\nSL/TP от волатильности\nСАМООБУЧЕНИЕ"]
+        SIGNALS_DB[("💾 signals.db\n2 сигнала")]
+        TRADES_DB[("💾 trades.db\nP&L сделок")]
+        LEARNING_DB[("💾 learning.db\nСобытия обучения")]
+    end
+
+    subgraph BACKUP_BLOCK["🛡️ ЗАЩИТА"]
+        BACKUP["backup-hermes.py\n03:00 МСК\nGit + tar.gz"]
+    end
+
+    subgraph USER_BLOCK["👤 ПОЛЬЗОВАТЕЛЬ"]
+        OLEG["Олег\nTelegram / WebUI"]
+    end
+
+    %% === ПОТОКИ ДАННЫХ ===
+    BYBIT -->|"REST: цена TON"| MONITOR
+    BYBIT -->|"REST: цена BTC"| ONCHAIN
+    COINGECKO -->|"REST: market cap"| ONCHAIN
+    TONCENTER -->|"REST: seqno, блоки"| ONCHAIN
+
+    MONITOR -->|"цены"| PRICES
+    PRICES -->|"100+ свечей"| SIGNAL
+    ONCHAIN -->|"NVT, корреляция"| ONCHAIN_DB
+    ONCHAIN_DB -->|"метрики"| SIGNAL
+
+    SIGNAL -->|"сигналы"| SIGNALS_DB
+    SIGNAL -->|"трекинг сделок"| TRADES_DB
+    SIGNAL -->|"3 убытка → анализ"| LEARNING_DB
+
+    PRICES -->|"цены"| ALERT
+
+    %% === УВЕДОМЛЕНИЯ ===
+    SIGNAL -->|"BUY/SELL + уровни"| TELEGRAM_API
+    ALERT -->|"Резкое движение"| TELEGRAM_API
+    LEARNING_DB -.->|"Предложения правок"| TELEGRAM_API
+
+    %% === УПРАВЛЕНИЕ ===
+    TELEGRAM_API -->|"Сообщения"| OLEG
+    OLEG -->|"/apply_learning"| SIGNAL
+
+    %% === СТИЛИ ===
+    style EXTERNAL fill:#1a1a2e,stroke:#16213e,color:#e0e0e0
+    style MONITORING fill:#0f3460,stroke:#16213e,color:#fff
+    style ONCHAIN_BLOCK fill:#0f3460,stroke:#16213e,color:#fff
+    style SIGNALS fill:#0f3460,stroke:#16213e,color:#fff
+    style ALERTS fill:#533483,stroke:#16213e,color:#fff
+    style BACKUP_BLOCK fill:#533483,stroke:#16213e,color:#fff
+    style USER_BLOCK fill:#1a1a2e,stroke:#e94560,color:#fff
+  </div>
+
+  <p style="text-align:center;margin-top:40px;color:#8b949e;font-size:14px">
+    Все компоненты автономны — работают 24/7 через cron.<br>
+    Пользователь получает сигналы в Telegram и управляет обучением.
+  </p>
+</div>
+</body>
+</html>

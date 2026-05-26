@@ -1,0 +1,52 @@
+{
+  "strategy": "swing",
+  "pair": "BTCUSDT",
+  "timeframe": "1h",
+  "created_at": "2026-05-22T18:40:45.123255",
+  "updated_at": "2026-05-22T18:40:45.123255",
+  "total_runs": 1,
+  "summary": {
+    "total_runs": 1,
+    "total_pnl": 3.4,
+    "total_trades": 1,
+    "total_wins": 1,
+    "total_losses": 0,
+    "win_rate": 100.0,
+    "max_drawdown": 0,
+    "best_run_pnl": 3.4,
+    "worst_run_pnl": 3.4,
+    "avg_pnl_per_run": 3.4
+  },
+  "runs": [
+    {
+      "id": "bt_1",
+      "timestamp": "2026-05-22T18:40:45.123255",
+      "balance": 100000.0,
+      "leverage": 10,
+      "position_size": 10000.0,
+      "period": 3,
+      "report": {
+        "start_balance": 100000.0,
+        "end_balance": 100003.4,
+        "net_pnl": 3.4,
+        "total_trades": 1,
+        "winning_trades": 1,
+        "losing_trades": 0,
+        "win_rate": 100.0,
+        "avg_pnl": 3.4,
+        "max_drawdown": 0,
+        "trades_list": [
+          {
+            "type": "BUY",
+            "entry": 77209.95,
+            "exit": 77297.9328,
+            "pnl": 3.3953,
+            "pnl_pct": 0.11,
+            "reason": "STOP_LOSS",
+            "bars": 82
+          }
+        ]
+      }
+    }
+  ]
+}

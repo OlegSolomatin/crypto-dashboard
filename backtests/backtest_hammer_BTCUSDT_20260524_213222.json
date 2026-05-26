@@ -1,0 +1,86 @@
+{
+  "job_id": "bt_5",
+  "timestamp": "2026-05-24T21:32:22.508325",
+  "params": {
+    "strategy": "hammer",
+    "pair": "BTCUSDT",
+    "timeframe": "30m",
+    "leverage": 5,
+    "balance": 100000.0,
+    "position_size": 20000.0,
+    "period": 14
+  },
+  "report": {
+    "start_balance": 100000.0,
+    "end_balance": 99508.09,
+    "net_pnl": -491.91,
+    "total_trades": 5,
+    "winning_trades": 2,
+    "losing_trades": 3,
+    "win_rate": 40.0,
+    "avg_pnl": -98.38,
+    "max_drawdown": 2.0,
+    "trades_list": [
+      {
+        "type": "BUY",
+        "entry": 81267.13,
+        "exit": 80552.8514,
+        "pnl": -958.9268,
+        "pnl_pct": -0.88,
+        "reason": "STOP_LOSS",
+        "bars": 19,
+        "detected_at": "2026-05-12 04:30:00",
+        "entry_time": "2026-05-12 05:00:00",
+        "exit_time": "2026-05-12 14:00:00"
+      },
+      {
+        "type": "BUY",
+        "entry": 80149.74,
+        "exit": 79692.296,
+        "pnl": -650.7367,
+        "pnl_pct": -0.57,
+        "reason": "STOP_LOSS",
+        "bars": 2,
+        "detected_at": "2026-05-13 15:30:00",
+        "entry_time": "2026-05-13 16:00:00",
+        "exit_time": "2026-05-13 16:30:00"
+      },
+      {
+        "type": "BUY",
+        "entry": 79027.37,
+        "exit": 78775.7627,
+        "pnl": -398.3799,
+        "pnl_pct": -0.32,
+        "reason": "STOP_LOSS",
+        "bars": 3,
+        "detected_at": "2026-05-16 08:00:00",
+        "entry_time": "2026-05-16 08:30:00",
+        "exit_time": "2026-05-16 09:30:00"
+      },
+      {
+        "type": "BUY",
+        "entry": 76900.0,
+        "exit": 77091.832,
+        "pnl": 169.4564,
+        "pnl_pct": 0.25,
+        "reason": "TAKE_PROFIT",
+        "bars": 1,
+        "detected_at": "2026-05-18 03:30:00",
+        "entry_time": "2026-05-18 04:00:00",
+        "exit_time": "2026-05-18 04:00:00"
+      },
+      {
+        "type": "BUY",
+        "entry": 74687.73,
+        "exit": 75753.2842,
+        "pnl": 1346.6791,
+        "pnl_pct": 1.43,
+        "reason": "TAKE_PROFIT",
+        "bars": 19,
+        "detected_at": "2026-05-23 11:30:00",
+        "entry_time": "2026-05-23 12:00:00",
+        "exit_time": "2026-05-23 21:00:00"
+      }
+    ]
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "job_id": "bt_4",
+  "timestamp": "2026-05-24T21:31:23.437299",
+  "params": {
+    "strategy": "hammer",
+    "pair": "BTCUSDT",
+    "timeframe": "5m",
+    "leverage": 5,
+    "balance": 100000.0,
+    "position_size": 20000.0,
+    "period": 14
+  },
+  "report": {
+    "start_balance": 100000.0,
+    "end_balance": 99377.38,
+    "net_pnl": -622.62,
+    "total_trades": 6,
+    "winning_trades": 1,
+    "losing_trades": 5,
+    "win_rate": 16.7,
+    "avg_pnl": -103.77,
+    "max_drawdown": 0.7,
+    "trades_list": [
+      {
+        "type": "BUY",
+        "entry": 77817.0,
+        "exit": 77600.6078,
+        "pnl": -358.0784,
+        "pnl_pct": -0.28,
+        "reason": "STOP_LOSS",
+        "bars": 17,
+        "detected_at": "2026-05-22 06:55:00",
+        "entry_time": "2026-05-22 07:00:00",
+        "exit_time": "2026-05-22 08:20:00"
+      },
+      {
+        "type": "BUY",
+        "entry": 77325.52,
+        "exit": 77328.81,
+        "pnl": -75.7453,
+        "pnl_pct": 0.0,
+        "reason": "TIMEOUT",
+        "bars": 20,
+        "detected_at": "2026-05-22 11:40:00",
+        "entry_time": "2026-05-22 11:45:00",
+        "exit_time": "2026-05-22 13:20:00"
+      },
+      {
+        "type": "BUY",
+        "entry": 75743.63,
+        "exit": 75606.3642,
+        "pnl": -261.2242,
+        "pnl_pct": -0.18,
+        "reason": "STOP_LOSS",
+        "bars": 3,
+        "detected_at": "2026-05-23 01:25:00",
+        "entry_time": "2026-05-23 01:30:00",
+        "exit_time": "2026-05-23 01:40:00"
+      },
+      {
+        "type": "BUY",
+        "entry": 74736.9,
+        "exit": 75189.2402,
+        "pnl": 525.2435,
+        "pnl_pct": 0.61,
+        "reason": "TAKE_PROFIT",
+        "bars": 18,
+        "detected_at": "2026-05-23 15:20:00",
+        "entry_time": "2026-05-23 15:25:00",
+        "exit_time": "2026-05-23 16:50:00"
+      },
+      {
+        "type": "BUY",
+        "entry": 75503.43,
+        "exit": 75462.52,
+        "pnl": -134.183,
+        "pnl_pct": -0.05,
+        "reason": "TIMEOUT",
+        "bars": 20,
+        "detected_at": "2026-05-23 18:35:00",
+        "entry_time": "2026-05-23 18:40:00",
+        "exit_time": "2026-05-23 20:15:00"
+      },
+      {
+        "type": "BUY",
+        "entry": 77083.84,
+        "exit": 76899.892,
+        "pnl": -318.6337,
+        "pnl_pct": -0.24,
+        "reason": "STOP_LOSS",
+        "bars": 15,
+        "detected_at": "2026-05-24 15:20:00",
+        "entry_time": "2026-05-24 15:25:00",
+        "exit_time": "2026-05-24 16:35:00"
+      }
+    ]
+  }
+}

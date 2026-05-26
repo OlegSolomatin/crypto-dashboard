@@ -2287,6 +2287,80 @@ def get_fear_greed():
         return {"error": str(e), "value": 50, "classification": "Unknown",
                 "recommendation": "❓ Нет данных", "advice": "API недоступен", "color": "#8888aa"}
 
+
+def get_balances():
+    """Получить балансы OpenRouter и DeepSeek API."""
+    import urllib.request as _ur
+    from datetime import datetime
+    import json
+    import os
+    
+    env_path = os.path.expanduser("~/.hermes/.env")
+    keys = {}
+    try:
+        with open(env_path) as f:
+            for line in f:
+                if line.startswith("OPENROUTER_API_KEY="):
+                    keys["openrouter"] = line.split("=", 1)[1].strip().strip('"').strip("'")
+                elif line.startswith("DEEPSEEK_API_KEY="):
+                    keys["deepseek"] = line.split("=", 1)[1].strip().strip('"').strip("'")
+    except:
+        pass
+    
+    result = []
+    now = datetime.now().isoformat()
+    
+    # OpenRouter
+    if keys.get("openrouter"):
+        try:
+            req = _ur.Request("https://openrouter.ai/api/v1/auth/key",
+                            headers={"Authorization": f"Bearer {keys['openrouter']}"})
+            with _ur.urlopen(req, timeout=8) as resp:
+                data = json.loads(resp.read()).get("data", {})
+                result.append({
+                    "service": "OpenRouter",
+                    "icon": "🔗",
+                    "balance": f"${data.get('usage', 0):.2f}",
+                    "usage": f"${data.get('usage', 0):.2f}",
+                    "is_free": data.get("is_free_tier", True),
+                    "remaining": "∞",  # prepaid — лимита нет
+                    "requests_today": data.get("usage_daily", 0),
+                    "updated": now,
+                })
+        except Exception as e:
+            result.append({
+                "service": "OpenRouter", "icon": "🔗",
+                "balance": "?", "usage": "$0", "is_free": True,
+                "requests_today": 0, "updated": now, "error": str(e)[:100],
+            })
+    
+    # DeepSeek
+    if keys.get("deepseek"):
+        try:
+            req = _ur.Request("https://api.deepseek.com/user/balance",
+                            headers={"Authorization": f"Bearer {keys['deepseek']}"})
+            with _ur.urlopen(req, timeout=8) as resp:
+                data = json.loads(resp.read())
+                infos = data.get("balance_infos", [])
+                total = sum(float(i.get("total_balance", 0)) for i in infos)
+                result.append({
+                    "service": "DeepSeek",
+                    "icon": "🐋",
+                    "balance": f"${total:.2f}",
+                    "usage": f"${float(infos[0].get('topped_up_balance', 0)):.2f}" if infos else "$0",
+                    "is_free": total < 0.01,
+                    "requests_today": 0,
+                    "updated": now,
+                })
+        except Exception as e:
+            result.append({
+                "service": "DeepSeek", "icon": "🐋",
+                "balance": "?", "usage": "$0", "is_free": True,
+                "requests_today": 0, "updated": now, "error": str(e)[:100],
+            })
+    
+    return {"balances": result, "updated": now}
+
 class Handler(BaseHTTPRequestHandler):
     def _json(self, data):
         self.send_response(200)
@@ -2470,6 +2544,9 @@ class Handler(BaseHTTPRequestHandler):
 
         elif path == '/api/fear-greed':
             self._json(get_fear_greed())
+
+        elif path == '/api/balances':
+            self._json(get_balances())
 
         elif path == '/' or path == '/dashboard':
             html = Path("/home/oleg/workspace/crypto-ton/dashboard.html").read_text()

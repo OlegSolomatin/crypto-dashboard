@@ -1,0 +1,79 @@
+{
+  "strategy": "rsi",
+  "pair": "DOGEUSDT",
+  "timeframe": "5m",
+  "created_at": "2026-05-22T21:57:08.416193",
+  "updated_at": "2026-05-22T21:57:08.416193",
+  "total_runs": 1,
+  "summary": {
+    "total_runs": 1,
+    "total_pnl": -308.14,
+    "total_trades": 4,
+    "total_wins": 1,
+    "total_losses": 3,
+    "win_rate": 25.0,
+    "max_drawdown": 0.5,
+    "best_run_pnl": -308.14,
+    "worst_run_pnl": -308.14,
+    "avg_pnl_per_run": -308.14
+  },
+  "runs": [
+    {
+      "id": "bt_4",
+      "timestamp": "2026-05-22T21:57:08.416193",
+      "balance": 100000.0,
+      "leverage": 5,
+      "position_size": 20000.0,
+      "period": 3,
+      "report": {
+        "start_balance": 100000.0,
+        "end_balance": 99691.86,
+        "net_pnl": -308.14,
+        "total_trades": 4,
+        "winning_trades": 1,
+        "losing_trades": 3,
+        "win_rate": 25.0,
+        "avg_pnl": -77.04,
+        "max_drawdown": 0.5,
+        "trades_list": [
+          {
+            "type": "BUY",
+            "entry": 0.1034,
+            "exit": 0.1021,
+            "pnl": -265.5406,
+            "pnl_pct": -1.25,
+            "reason": "STOP_LOSS",
+            "bars": 71
+          },
+          {
+            "type": "BUY",
+            "entry": 0.1024,
+            "exit": 0.1049,
+            "pnl": 468.2804,
+            "pnl_pct": 2.42,
+            "reason": "TAKE_PROFIT",
+            "bars": 128
+          },
+          {
+            "type": "SELL",
+            "entry": 0.1047,
+            "exit": 0.1059,
+            "pnl": -251.0244,
+            "pnl_pct": -1.18,
+            "reason": "STOP_LOSS",
+            "bars": 125
+          },
+          {
+            "type": "BUY",
+            "entry": 0.105,
+            "exit": 0.1037,
+            "pnl": -259.856,
+            "pnl_pct": -1.22,
+            "reason": "STOP_LOSS",
+            "bars": 431
+          }
+        ]
+      }
+    }
+  ]
+}

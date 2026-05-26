@@ -1,0 +1,50 @@
+{
+  "job_id": "bt_3",
+  "timestamp": "2026-05-24T21:30:42.465289",
+  "params": {
+    "strategy": "hammer",
+    "pair": "BTCUSDT",
+    "timeframe": "15m",
+    "leverage": 5,
+    "balance": 100000.0,
+    "position_size": 20000.0,
+    "period": 14
+  },
+  "report": {
+    "start_balance": 100000.0,
+    "end_balance": 99113.54,
+    "net_pnl": -886.46,
+    "total_trades": 2,
+    "winning_trades": 0,
+    "losing_trades": 2,
+    "win_rate": 0.0,
+    "avg_pnl": -443.23,
+    "max_drawdown": 0.9,
+    "trades_list": [
+      {
+        "type": "BUY",
+        "entry": 77769.96,
+        "exit": 77559.5101,
+        "pnl": -350.6056,
+        "pnl_pct": -0.27,
+        "reason": "STOP_LOSS",
+        "bars": 4,
+        "detected_at": "2026-05-21 08:45:00",
+        "entry_time": "2026-05-21 09:00:00",
+        "exit_time": "2026-05-21 09:45:00"
+      },
+      {
+        "type": "BUY",
+        "entry": 77720.25,
+        "exit": 77365.958,
+        "pnl": -535.8555,
+        "pnl_pct": -0.46,
+        "reason": "STOP_LOSS",
+        "bars": 12,
+        "detected_at": "2026-05-21 10:15:00",
+        "entry_time": "2026-05-21 10:30:00",
+        "exit_time": "2026-05-21 13:15:00"
+      }
+    ]
+  }
+}

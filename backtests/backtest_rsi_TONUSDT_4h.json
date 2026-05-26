@@ -1,0 +1,70 @@
+{
+  "strategy": "rsi",
+  "pair": "TONUSDT",
+  "timeframe": "4h",
+  "created_at": "2026-05-21T21:30:38.929035",
+  "updated_at": "2026-05-21T21:30:38.929035",
+  "total_runs": 1,
+  "summary": {
+    "total_runs": 1,
+    "total_pnl": -32.74,
+    "total_trades": 3,
+    "total_wins": 1,
+    "total_losses": 2,
+    "win_rate": 33.3,
+    "max_drawdown": 0.3,
+    "best_run_pnl": -32.74,
+    "worst_run_pnl": -32.74,
+    "avg_pnl_per_run": -32.74
+  },
+  "runs": [
+    {
+      "id": "bt_2",
+      "timestamp": "2026-05-21T21:30:38.929035",
+      "balance": 51800.0,
+      "leverage": 3,
+      "position_size": 13854.0,
+      "period": 7,
+      "report": {
+        "start_balance": 51800.0,
+        "end_balance": 51767.26,
+        "net_pnl": -32.74,
+        "total_trades": 3,
+        "winning_trades": 1,
+        "losing_trades": 2,
+        "win_rate": 33.3,
+        "avg_pnl": -10.91,
+        "max_drawdown": 0.3,
+        "trades_list": [
+          {
+            "type": "SELL",
+            "entry": 2.302,
+            "exit": 2.3296,
+            "pnl": -177.1868,
+            "pnl_pct": -1.2,
+            "reason": "STOP_LOSS",
+            "bars": 1
+          },
+          {
+            "type": "BUY",
+            "entry": 2.057,
+            "exit": 2.1064,
+            "pnl": 321.6283,
+            "pnl_pct": 2.4,
+            "reason": "TAKE_PROFIT",
+            "bars": 1
+          },
+          {
+            "type": "BUY",
+            "entry": 1.91,
+            "exit": 1.8871,
+            "pnl": -177.1861,
+            "pnl_pct": -1.2,
+            "reason": "STOP_LOSS",
+            "bars": 2
+          }
+        ]
+      }
+    }
+  ]
+}

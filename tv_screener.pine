@@ -1,0 +1,47 @@
+// ═══════════════════════════════════════════
+// TradingView SCREENER — поиск монет с RSI<35
+// Скопируй это в TV: Новый скрипт → Screener
+// ═══════════════════════════════════════════
+
+//@version=5
+indicator("TON Trader Screener", overlay=false)
+
+// === ИНДИКАТОРЫ ===
+rsi14 = ta.rsi(close, 14)
+sma20 = ta.sma(close, 20)
+volume_sma = ta.sma(volume, 20)
+ema5 = ta.ema(close, 5)
+ema20 = ta.ema(close, 20)
+
+// === УСЛОВИЯ ===
+// BUY: RSI<35 + цена выше SMA20 + объём растёт
+rsi_oversold = rsi14 < 35
+trend_up = close > sma20
+volume_spike = volume > volume_sma * 1.3
+ema_cross = ta.crossover(ema5, ema20)
+
+// SELL: RSI>70
+rsi_overbought = rsi14 > 70
+trend_down = close < sma20
+
+// === СИГНАЛЫ ===
+buy_signal = rsi_oversold and trend_up and volume_spike
+strong_buy = rsi_oversold and trend_up and volume_spike and ema_cross
+sell_signal = rsi_overbought
+
+// === ВЫВОД ===
+plot(0, "Baseline", color=color.gray, linewidth=1)
+
+bgcolor(buy_signal ? color.new(color.green, 85) : na)
+bgcolor(strong_buy ? color.new(color.green, 60) : na)
+bgcolor(sell_signal ? color.new(color.red, 85) : na)
+
+// Алерты для Webhook
+alertcondition(strong_buy, "STRONG BUY", "RSI<35 + EMA cross + volume")
+alertcondition(buy_signal, "BUY", "RSI<35 + trend up + volume")
+alertcondition(sell_signal, "SELL", "RSI>70 overbought")
+
+// === СКРИНЕР: найди все монеты где RSI<35 ===
+// Выбери в TV: Скринер → Колонка "RSI<35 BUY Signal"
+screener_buy = buy_signal ? 1 : 0
+plot(screener_buy, "RSI<35 Signal", display=display.none)

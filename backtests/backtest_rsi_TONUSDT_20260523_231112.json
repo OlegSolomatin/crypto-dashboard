@@ -1,0 +1,116 @@
+{
+  "job_id": "bt_1",
+  "timestamp": "2026-05-23T23:11:12.736604",
+  "params": {
+    "strategy": "rsi",
+    "pair": "TONUSDT",
+    "timeframe": "5m",
+    "leverage": 3,
+    "balance": 1000.0,
+    "position_size": 50.0,
+    "period": 3
+  },
+  "report": {
+    "start_balance": 1000.0,
+    "end_balance": 998.88,
+    "net_pnl": -1.12,
+    "total_trades": 13,
+    "winning_trades": 4,
+    "losing_trades": 9,
+    "win_rate": 30.8,
+    "avg_pnl": -0.09,
+    "max_drawdown": 0.3,
+    "trades_list": [
+      {
+        "type": "BUY",
+        "entry": 2.001,
+        "exit": 2.049,
+        "pnl": 1.1594,
+        "pnl_pct": 2.4,
+        "reason": "TAKE_PROFIT",
+        "bars": 43
+      },
+      {
+        "type": "SELL",
+        "entry": 2.063,
+        "exit": 2.0135,
+        "pnl": 1.1597,
+        "pnl_pct": 2.4,
+        "reason": "TAKE_PROFIT",
+        "bars": 102
+      },
+      {
+        "type": "BUY",
+        "entry": 2.0,
+        "exit": 1.976,
+        "pnl": -0.64,
+        "pnl_pct": -1.2,
+        "reason": "STOP_LOSS",
+        "bars": 34
+      },
+      {
+        "type": "BUY",
+        "entry": 1.98,
+        "exit": 1.9562,
+        "pnl": -0.641,
+        "pnl_pct": -1.2,
+        "reason": "STOP_LOSS",
+        "bars": 3
+      },
+      {
+        "type": "BUY",
+        "entry": 1.949,
+        "exit": 1.9256,
+        "pnl": -0.6403,
+        "pnl_pct": -1.2,
+        "reason": "STOP_LOSS",
+        "bars": 2
+      },
+      {
+        "type": "BUY",
+        "entry": 1.823,
+        "exit": 1.8668,
+        "pnl": 1.1613,
+        "pnl_pct": 2.4,
+        "reason": "TAKE_PROFIT",
+        "bars": 15
+      },
+      {
+        "type": "BUY",
+        "entry": 1.846,
+        "exit": 1.8238,
+        "pnl": -0.6413,
+        "pnl_pct": -1.2,
+        "reason": "STOP_LOSS",
+        "bars": 14
+      },
+      {
+        "type": "BUY",
+        "entry": 1.802,
+        "exit": 1.7804,
+        "pnl": -0.6393,
+        "pnl_pct": -1.2,
+        "reason": "STOP_LOSS",
+        "bars": 3
+      },
+      {
+        "type": "BUY",
+        "entry": 1.77,
+        "exit": 1.7488,
+        "pnl": -0.6389,
+        "pnl_pct": -1.2,
+        "reason": "STOP_LOSS",
+        "bars": 11
+      },
+      {
+        "type": "SELL",
+        "entry": 1.783,
+        "exit": 1.8044,
+        "pnl": -0.6401,
+        "pnl_pct": -1.2,
+        "reason": "STOP_LOSS",
+        "bars": 38
+      }
+    ]
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "strategy": "hammer",
+  "pair": "BTCUSDT",
+  "timeframe": "1h",
+  "created_at": "2026-05-24T21:26:34.133461",
+  "updated_at": "2026-05-24T22:20:02.919143",
+  "total_runs": 2,
+  "summary": {
+    "total_runs": 2,
+    "total_pnl": -804.53,
+    "total_trades": 1,
+    "total_wins": 0,
+    "total_losses": 1,
+    "win_rate": 0.0,
+    "max_drawdown": 0.8,
+    "best_run_pnl": 0,
+    "worst_run_pnl": -804.53,
+    "avg_pnl_per_run": -402.26
+  },
+  "runs": [
+    {
+      "id": "bt_1",
+      "timestamp": "2026-05-24T21:26:34.133461",
+      "balance": 100000.0,
+      "leverage": 5,
+      "position_size": 20000.0,
+      "period": 14,
+      "report": {
+        "start_balance": 100000.0,
+        "end_balance": 99195.47,
+        "net_pnl": -804.53,
+        "total_trades": 1,
+        "winning_trades": 0,
+        "losing_trades": 1,
+        "win_rate": 0.0,
+        "avg_pnl": -804.53,
+        "max_drawdown": 0.8,
+        "trades_list": [
+          {
+            "type": "BUY",
+            "entry": 78268.05,
+            "exit": 77700.9766,
+            "pnl": -804.5273,
+            "pnl_pct": -0.72,
+            "reason": "STOP_LOSS",
+            "bars": 6,
+            "detected_at": "2026-05-17 20:00:00",
+            "entry_time": "2026-05-17 21:00:00",
+            "exit_time": "2026-05-18 02:00:00"
+          }
+        ]
+      }
+    },
+    {
+      "id": "bt_4",
+      "timestamp": "2026-05-24T22:20:02.919143",
+      "balance": 100000.0,
+      "leverage": 5,
+      "position_size": 20000.0,
+      "period": 14,
+      "report": {
+        "start_balance": 100000.0,
+        "end_balance": 100000.0,
+        "net_pnl": 0,
+        "total_trades": 0,
+        "winning_trades": 0,
+        "losing_trades": 0,
+        "win_rate": 0,
+        "avg_pnl": 0,
+        "max_drawdown": 0,
+        "trades_list": []
+      }
+    }
+  ]
+}
