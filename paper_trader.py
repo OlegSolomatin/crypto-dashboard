@@ -7,7 +7,7 @@ PAPER TRADING — симуляция сделок на РЕАЛЬНЫХ данн
 Все сделки виртуальные, но на реальных ценах.
 """
 
-import sqlite3, json, os, sys, urllib.request, urllib.parse
+import sqlite3, json, os, sys, urllib.request, urllib.parse, time as _time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Optional, Dict
@@ -19,6 +19,19 @@ PAPER_DB = Path("/home/oleg/workspace/crypto-ton/paper.db")
 ONCHAIN_DB = Path("/home/oleg/workspace/crypto-ton/onchain.db")
 UTC_PLUS_3 = timezone(timedelta(hours=3))
 
+
+def _connect_retry(db_path, max_retries=3, delay=1.0):
+    """Connect to SQLite with retry on OperationalError (locked DB)."""
+    for attempt in range(max_retries):
+        try:
+            conn = sqlite3.connect(str(db_path), timeout=10)
+            conn.execute("PRAGMA journal_mode=WAL")
+            return conn
+        except sqlite3.OperationalError as e:
+            if attempt == max_retries - 1:
+                raise
+            _time.sleep(delay * (attempt + 1))
+
 LEVERAGE = 3
 BASE_MARGIN = 5.20
 
@@ -27,7 +40,7 @@ BASE_MARGIN = 5.20
 # ═══════════════════════════════════════════
 
 def init_paper_db():
-    conn = sqlite3.connect(str(PAPER_DB))
+    conn = _connect_retry(PAPER_DB)
     conn.execute("""CREATE TABLE IF NOT EXISTS paper_positions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         signal_id INTEGER, signal_ts TEXT,
@@ -49,7 +62,7 @@ def init_paper_db():
 def get_balance() -> float:
     """Текущий виртуальный баланс."""
     initial = 100.0
-    conn = sqlite3.connect(str(PAPER_DB))
+    conn = _connect_retry(PAPER_DB)
     total_pnl = conn.execute("SELECT COALESCE(SUM(pnl),0) FROM paper_positions").fetchone()[0]
     conn.close()
     return round(initial + total_pnl, 2)
@@ -62,7 +75,7 @@ def get_margin() -> float:
 
 
 def get_open_position() -> Optional[Dict]:
-    conn = sqlite3.connect(str(PAPER_DB))
+    conn = _connect_retry(PAPER_DB)
     conn.row_factory = sqlite3.Row
     row = conn.execute(
         "SELECT * FROM paper_positions WHERE closed_ts IS NULL ORDER BY id DESC LIMIT 1"
@@ -72,7 +85,7 @@ def get_open_position() -> Optional[Dict]:
 
 
 def get_recent_performance() -> Dict:
-    conn = sqlite3.connect(str(PAPER_DB))
+    conn = _connect_retry(PAPER_DB)
     rows = conn.execute(
         "SELECT type, pnl, pnl_pct, exit_reason, bars_held FROM paper_positions "
         "WHERE closed_ts IS NOT NULL ORDER BY id DESC LIMIT 30"
@@ -102,7 +115,7 @@ def get_recent_performance() -> Dict:
 
 
 def get_consecutive_losses() -> int:
-    conn = sqlite3.connect(str(PAPER_DB))
+    conn = _connect_retry(PAPER_DB)
     rows = conn.execute(
         "SELECT pnl FROM paper_positions WHERE closed_ts IS NOT NULL ORDER BY id DESC LIMIT 10"
     ).fetchall()
@@ -122,12 +135,12 @@ def get_last_signal() -> Optional[Dict]:
     """Последний неотработанный сигнал из signals_v6 (приоритет) или signals_v5 (fallback)."""
     try:
         # Сначала получаем все ID уже открытых позиций
-        paper_conn = sqlite3.connect(str(PAPER_DB))
+        paper_conn = _connect_retry(PAPER_DB)
         used_ids = paper_conn.execute("SELECT DISTINCT signal_id FROM paper_positions").fetchall()
         paper_conn.close()
         used_set = {r[0] for r in used_ids}
         
-        conn = sqlite3.connect(str(SIGNALS_DB))
+        conn = _connect_retry(SIGNALS_DB)
         conn.row_factory = sqlite3.Row
         
         # Пробуем signals_v6 (новый формат)
@@ -170,7 +183,7 @@ def open_paper_position(signal_id: int, signal_ts: str, sig_type: str, price: fl
     position_usd = margin * LEVERAGE
     qty = round(position_usd / price, 1)
     
-    conn = sqlite3.connect(str(PAPER_DB))
+    conn = _connect_retry(PAPER_DB)
     conn.execute("""
         INSERT INTO paper_positions (signal_id, signal_ts, opened_ts, type,
             entry_price, sl, tp, qty, margin, leverage, balance_before)
@@ -192,7 +205,7 @@ def check_and_close_positions():
     # Проверяем историю цен с момента открытия
     entry_ts = pos["opened_ts"]
     
-    conn = sqlite3.connect(str(DATA_DB))
+    conn = _connect_retry(DATA_DB)
     rows = conn.execute(
         "SELECT last_price, timestamp FROM prices WHERE timestamp > ? ORDER BY id ASC",
         (entry_ts,)
@@ -249,7 +262,7 @@ def close_paper_position(pos_id: int, exit_price: float, reason: str, bars_held:
     
     balance_after = round(balance_before + pnl_dollars, 2)
     
-    conn = sqlite3.connect(str(PAPER_DB))
+    conn = _connect_retry(PAPER_DB)
     conn.execute("""
         UPDATE paper_positions SET
             closed_ts=?, exit_price=?, exit_reason=?, bars_held=?,
@@ -349,52 +362,57 @@ def send_tg(text):
 # ═══════════════════════════════════════════
 
 if __name__ == "__main__":
-    init_paper_db()
-    
-    # Проверить открытые позиции
-    check_and_close_positions()
-    
-    # Если уже есть открытая → не открываем новую
-    if get_open_position():
-        print(f"[{datetime.now(UTC_PLUS_3).strftime('%H:%M:%S')}] Позиция открыта — ждём закрытия")
-        balance = get_balance()
-        perf = get_recent_performance()
-        print(f"  Баланс: ${balance:.0f} | Сделок: {perf.get('trades',0)} | Винрейт: {perf.get('win_rate','?')}%")
-        sys.exit(0)
-    
-    # Ищем новый сигнал
-    sig = get_last_signal()
-    if not sig:
-        print(f"[{datetime.now(UTC_PLUS_3).strftime('%H:%M:%S')}] Нет новых сигналов")
-        sys.exit(0)
-    
-    # Сигнал не старше 10 минут
-    sig_ts = datetime.fromisoformat(sig["ts"])
-    age = (datetime.now(UTC_PLUS_3) - sig_ts).total_seconds() / 60
-    if age > 10:
-        print(f"  Сигнал устарел ({age:.0f} мин) — пропускаем")
-        sys.exit(0)
-    
-    # Открываем позицию
-    result = open_paper_position(
-        sig["id"], sig["ts"], sig["signal"],
-        sig["price"], sig["sl"], sig["tp"]
-    )
-    
-    emoji = "📈" if sig["signal"] == "BUY" else "📉"
-    msg = (
-        f"{emoji} <b>PAPER TRADE ОТКРЫТА</b>\n\n"
-        f"{sig['signal']} TON/USDT ×{LEVERAGE}\n"
-        f"Вход: <b>${sig['price']:.4f}</b>\n"
-        f"Позиция: <b>${result['position']:.2f}</b> ({result['qty']} TON)\n"
-        f"Маржа: <b>${result['margin']:.2f}</b>\n"
-        f"Стоп-лосс: <b>${sig['sl']:.4f}</b>\n"
-        f"Тейк-профит: <b>${sig['tp']:.4f}</b>\n"
-        f"Баланс: <b>${result['balance']:.0f}$</b>\n"
-        f"\n{datetime.now(UTC_PLUS_3).strftime('%d.%m.%Y %H:%M')} МСК"
-    )
-    send_tg(msg)
-    
-    print(f"[{datetime.now(UTC_PLUS_3).strftime('%H:%M:%S')}] {sig['signal']} открыт "
-          f"@{sig['price']:.4f} ({result['qty']} TON ×{LEVERAGE}) | "
-          f"SL={sig['sl']:.4f} TP={sig['tp']:.4f} | Баланс ${result['balance']:.0f}")
+    try:
+        init_paper_db()
+        
+        # Проверить открытые позиции
+        check_and_close_positions()
+        
+        # Если уже есть открытая → не открываем новую
+        if get_open_position():
+            print(f"[{datetime.now(UTC_PLUS_3).strftime('%H:%M:%S')}] Позиция открыта — ждём закрытия")
+            balance = get_balance()
+            perf = get_recent_performance()
+            print(f"  Баланс: ${balance:.0f} | Сделок: {perf.get('trades',0)} | Винрейт: {perf.get('win_rate','?')}%")
+            sys.exit(0)
+        
+        # Ищем новый сигнал
+        sig = get_last_signal()
+        if not sig:
+            print(f"[{datetime.now(UTC_PLUS_3).strftime('%H:%M:%S')}] Нет новых сигналов")
+            sys.exit(0)
+        
+        # Сигнал не старше 10 минут
+        sig_ts = datetime.fromisoformat(sig["ts"])
+        age = (datetime.now(UTC_PLUS_3) - sig_ts).total_seconds() / 60
+        if age > 10:
+            print(f"  Сигнал устарел ({age:.0f} мин) — пропускаем")
+            sys.exit(0)
+        
+        # Открываем позицию
+        result = open_paper_position(
+            sig["id"], sig["ts"], sig["signal"],
+            sig["price"], sig["sl"], sig["tp"]
+        )
+        
+        emoji = "📈" if sig["signal"] == "BUY" else "📉"
+        msg = (
+            f"{emoji} <b>PAPER TRADE ОТКРЫТА</b>\n\n"
+            f"{sig['signal']} TON/USDT ×{LEVERAGE}\n"
+            f"Вход: <b>${sig['price']:.4f}</b>\n"
+            f"Позиция: <b>${result['position']:.2f}</b> ({result['qty']} TON)\n"
+            f"Маржа: <b>${result['margin']:.2f}</b>\n"
+            f"Стоп-лосс: <b>${sig['sl']:.4f}</b>\n"
+            f"Тейк-профит: <b>${sig['tp']:.4f}</b>\n"
+            f"Баланс: <b>${result['balance']:.0f}$</b>\n"
+            f"\n{datetime.now(UTC_PLUS_3).strftime('%d.%m.%Y %H:%M')} МСК"
+        )
+        send_tg(msg)
+        
+        print(f"[{datetime.now(UTC_PLUS_3).strftime('%H:%M:%S')}] {sig['signal']} открыт "
+              f"@{sig['price']:.4f} ({result['qty']} TON ×{LEVERAGE}) | "
+              f"SL={sig['sl']:.4f} TP={sig['tp']:.4f} | Баланс ${result['balance']:.0f}")
+    except sqlite3.OperationalError as e:
+        print(f"[{datetime.now(UTC_PLUS_3).strftime('%H:%M:%S')}] DB locked — retry exhausted: {e}",
+              file=sys.stderr)
+        sys.exit(1)

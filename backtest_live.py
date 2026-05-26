@@ -68,10 +68,11 @@ def detect_morning_star(candles, i):
     first_bearish = first["close"] < first["open"]
     first_body = abs(first["close"] - first["open"])
     second_body = abs(second["close"] - second["open"])
-    second_small = second_body < first_body * 0.3 if first_body > 0 else True
+    second_small = second_body < first_body * 0.5 if first_body > 0 else True
     third_bullish = third["close"] > third["open"]
     third_above_mid = third["close"] > (first["open"] + first["close"]) / 2
-    return first_bearish and second_small and third_bullish and third_above_mid
+    third_above_first_open = third["close"] > first["open"]
+    return first_bearish and second_small and third_bullish and third_above_mid and third_above_first_open
 
 def detect_piercing_line(candles, i):
     """Пронизывающая линия: красная → зелёная открывается ниже минимума,
@@ -81,14 +82,14 @@ def detect_piercing_line(candles, i):
     prev, cur = candles[i-1], candles[i]
     prev_bearish = prev["close"] < prev["open"]
     cur_bullish = cur["close"] > cur["open"]
-    opens_below_prev_low = cur["open"] < prev["low"]
+    opens_below_prev_close = cur["open"] < prev["close"]
     prev_body = abs(prev["close"] - prev["open"])
     if prev_body == 0:
         return False
     prev_mid = (prev["open"] + prev["close"]) / 2
     closes_above_mid = cur["close"] > prev_mid
     closes_below_prev_open = cur["close"] < prev["open"]
-    return (prev_bearish and cur_bullish and opens_below_prev_low and
+    return (prev_bearish and cur_bullish and opens_below_prev_close and
             closes_above_mid and closes_below_prev_open)
 
 def is_downtrend(candles, i, n=3):

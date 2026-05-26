@@ -7,7 +7,7 @@ JSON API для дашборда.
 Запуск: python3 dashboard_api.py [порт]   (по умолчанию 8889)
 """
 
-import sqlite3, json, sys, math, urllib.request, urllib.error, os
+import sqlite3, json, sys, math, urllib.request, urllib.error, urllib.parse, os, threading, time as _time_module
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -33,6 +33,94 @@ SYMBOLS = {
     "XRP":    "XRPUSDT",
     "SUI":    "SUIUSDT",
 }
+
+# Binance pair cache (refreshed hourly)
+_binance_pairs_cache = {"pairs": [], "updated": 0, "lock": threading.Lock()}
+
+def _fetch_binance_pairs():
+    """Fetch all USDT trading pairs from Binance with 24h volume."""
+    with _binance_pairs_cache["lock"]:
+        now = _time_module.time()
+        if now - _binance_pairs_cache["updated"] < 3600 and _binance_pairs_cache["pairs"]:
+            return _binance_pairs_cache["pairs"]
+    
+    pairs = []
+    try:
+        # Get exchange info
+        req = urllib.request.Request("https://api.binance.com/api/v3/exchangeInfo")
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read())
+        usdt_symbols = [s["symbol"] for s in data["symbols"] 
+                       if s["symbol"].endswith("USDT") and s["status"] == "TRADING"]
+        
+        # Get 24h ticker for volumes (batch of 100)
+        volumes = {}
+        for chunk_start in range(0, len(usdt_symbols), 100):
+            chunk = usdt_symbols[chunk_start:chunk_start+100]
+            symbols_param = "[\"" + "\",\"".join(chunk) + "\"]"
+            ticker_url = f"https://api.binance.com/api/v3/ticker/24hr?symbols={urllib.parse.quote(symbols_param)}"
+            req2 = urllib.request.Request(ticker_url)
+            with urllib.request.urlopen(req2, timeout=15) as resp2:
+                tickers = json.loads(resp2.read())
+            for t in tickers:
+                vol = float(t.get("quoteVolume", 0))
+                volumes[t["symbol"]] = vol
+        
+        # Build pair list sorted by volume desc
+        for sym in usdt_symbols:
+            vol = volumes.get(sym, 0)
+            base = sym.replace("USDT", "")
+            pairs.append({
+                "id": sym,
+                "name": base,
+                "quote": "USDT",
+                "icon": _get_coin_icon(base),
+                "vol": _fmt_volume(vol),
+                "vol_raw": vol,
+                "base": base
+            })
+        pairs.sort(key=lambda p: p["vol_raw"], reverse=True)
+        
+        with _binance_pairs_cache["lock"]:
+            _binance_pairs_cache["pairs"] = pairs
+            _binance_pairs_cache["updated"] = _time_module.time()
+    except Exception as e:
+        # Return cached if available, otherwise empty
+        with _binance_pairs_cache["lock"]:
+            if _binance_pairs_cache["pairs"]:
+                return _binance_pairs_cache["pairs"]
+        print(f"[pairs] Failed to fetch: {e}")
+    return pairs
+
+def _get_coin_icon(base: str) -> str:
+    """Return icon/emoji for a crypto base asset."""
+    ICONS = {
+        "BTC": "₿", "ETH": "Ξ", "SOL": "◎", "BNB": "🟡", "XRP": "💧",
+        "ADA": "🔵", "DOGE": "🐕", "DOT": "⚫", "AVAX": "🔺", "MATIC": "🟣",
+        "LINK": "🔗", "UNI": "🦄", "ATOM": "⚛", "LTC": "🪙", "TRX": "🔴",
+        "NEAR": "🌙", "FIL": "📁", "APT": "🏛", "ARB": "🔷", "OP": "🔴",
+        "SUI": "🌊", "SEI": "🌐", "TIA": "✨", "INJ": "💉", "RUNE": "⚡",
+        "PEPE": "🐸", "WIF": "🎩", "BONK": "💥", "FLOKI": "🐕", "SHIB": "🐕",
+        "TON": "💎", "NOT": "📱", "DOGS": "🐾", "HMSTR": "🐹", "USDC": "💵",
+        "USDT": "💵", "DAI": "🟡", "FTM": "👻", "ALGO": "🔺", "XTZ": "🔷",
+        "EOS": "🌐", "ZEC": "🛡", "XMR": "🔒", "DASH": "💨", "NEO": "🟢",
+        "CAKE": "🍰", "SAND": "🏖", "MANA": "🎮", "GALA": "🎲", "AXS": "🪓",
+        "THETA": "📡", "GRT": "📊", "SNX": "💱", "CRV": "📈", "AAVE": "👻",
+        "MKR": "🔨", "COMP": "🏦", "YFI": "💰", "SUSHI": "🍣", "1INCH": "📏",
+        "BAT": "🦁", "ZRX": "0️⃣", "ENJ": "🎮", "CHZ": "⚽", "HOT": "🔥",
+        "CELO": "🌱", "ICP": "∞", "KSM": "🔵", "FLOW": "🌊", "EGLD": "💎",
+        "ROSE": "🌹", "IMX": "🎮", "STX": "📚", "MINA": "🔽", "KAVA": "🌊",
+        "OSMO": "💧", "JUP": "🪐", "PYTH": "🔮", "WORMHOLE": "🕳", "JTO": "🪐",
+        "RNDR": "🎨", "FET": "🤖", "AGIX": "🧠", "OCEAN": "🌊", "WLD": "🌍",
+        "STRK": "⚡", "ZK": "🔐", "ENA": "💃", "ETHFI": "🏦", "REZ": "💠",
+    }
+    return ICONS.get(base.upper(), base[:2].upper())
+
+def _fmt_volume(vol):
+    if vol >= 1e9: return f"${vol/1e9:.1f}B"
+    if vol >= 1e6: return f"${vol/1e6:.0f}M"
+    if vol >= 1e3: return f"${vol/1e3:.0f}K"
+    return f"${vol:.0f}"
 
 INTERVALS = {
     "1m":  ("1m", 1),
@@ -1522,7 +1610,9 @@ class BacktestRunner:
     @staticmethod
     def _run_morning_star(candles, balance, leverage, position_size, bt, params, step_delay=0):
         """Morning Star (Утренняя звезда): красная → доджи → зелёная (разворот вверх).
-        LONG только. SL под минимумом трёх свечей, TP 1:2, volume-фильтр, подтверждение."""
+        LONG только. SL под минимумом трёх свечей, TP 1:2, volume-фильтр, подтверждение.
+        Doji filter uses ATR-adaptive floor (avg_range*0.2) and relaxed body ratio (0.5x).
+        Stronger confirmation: third candle must close above first candle's open."""
         import time as _time
         closes = [c["close"] for c in candles]
         highs  = [c["high"]  for c in candles]
@@ -1547,19 +1637,24 @@ class BacktestRunner:
             first_bearish = closes[i-2] < opens[i-2]
             first_body = abs(closes[i-2] - opens[i-2])
             second_body = abs(closes[i-1] - opens[i-1])
-            second_small = second_body < first_body * 0.3 if first_body > 0 else True
+            doji_threshold = max(first_body * 0.5, avg_range * 0.2) if first_body > 0 else avg_range * 0.2
+            second_small = second_body < doji_threshold
             third_bullish = closes[i] > opens[i]
             # Третья свеча закрывается выше середины первой
             third_closes_above_mid = closes[i] > (opens[i-2] + closes[i-2]) / 2
-            return first_bearish and second_small and third_bullish and third_closes_above_mid
+            # Stronger confirmation: third closes above first candle's open
+            third_closes_above_first_open = closes[i] > opens[i-2]
+            return (first_bearish and second_small and third_bullish
+                    and third_closes_above_mid and third_closes_above_first_open)
         
         def has_volume_confirmation(i, period=VOL_PERIOD):
             if i < period:
                 return False
             avg_vol = sum(volumes[i-period:i]) / period
             return volumes[i] > avg_vol * VOL_THRESHOLD
-        
+
         for i in range(10, len(closes)):
+            avg_range = sum(highs[j] - lows[j] for j in range(max(0, i-14), i)) / min(i, 14) if i > 0 else 0
             if bt.get("cancelled"):
                 break
             if step_delay:
@@ -1662,8 +1757,9 @@ class BacktestRunner:
     
     @staticmethod
     def _run_piercing_line(candles, balance, leverage, position_size, bt, params, step_delay=0):
-        """Piercing Line (Пронизывающая линия): красная → зелёная открывается ниже минимума красной,
-        закрывается выше середины красной. LONG только. SL под минимумом, TP 1:2."""
+        """Piercing Line (классическое определение): красная свеча → зелёная открывается ниже закрытия
+        красной, закрывается выше середины тела красной. LONG только. SL под минимумом, TP 1:2.
+        Фильтр ATR отсеивает доджи (тело < 30% среднего диапазона)."""
         import time as _time
         closes = [c["close"] for c in candles]
         highs  = [c["high"]  for c in candles]
@@ -1687,14 +1783,14 @@ class BacktestRunner:
                 return False
             prev_bearish = closes[i-1] < opens[i-1]
             cur_bullish = closes[i] > opens[i]
-            opens_below_prev_low = opens[i] < lows[i-1]
+            opens_below_prev_close = opens[i] < closes[i-1]
             prev_body = abs(closes[i-1] - opens[i-1])
             if prev_body == 0:
                 return False
             prev_mid = (opens[i-1] + closes[i-1]) / 2
             closes_above_mid = closes[i] > prev_mid
             closes_below_prev_open = closes[i] < opens[i-1]
-            return (prev_bearish and cur_bullish and opens_below_prev_low and
+            return (prev_bearish and cur_bullish and opens_below_prev_close and
                     closes_above_mid and closes_below_prev_open)
         
         def has_volume_confirmation(i, period=VOL_PERIOD):
@@ -1704,6 +1800,8 @@ class BacktestRunner:
             return volumes[i] > avg_vol * VOL_THRESHOLD
         
         for i in range(10, len(closes)):
+            # ATR-based body filter: skip candles with tiny body relative to volatility
+            avg_range = sum(highs[j] - lows[j] for j in range(max(0, i-14), i)) / min(i, 14) if i > 0 else 0
             if bt.get("cancelled"):
                 break
             if step_delay:
@@ -1757,7 +1855,8 @@ class BacktestRunner:
                 continue
             
             if is_piercing_line(i) and has_volume_confirmation(i):
-                if i + 1 >= len(closes) or closes[i + 1] <= closes[i]:
+                prev_body = abs(closes[i-1] - opens[i-1])
+                if prev_body <= avg_range * 0.3:
                     continue
                 
                 entry_bar = i + 2 if i + 2 < len(closes) else i + 1
@@ -2857,39 +2956,45 @@ def get_balances():
     # OpenRouter
     if keys.get("openrouter"):
         try:
-            req = _ur.Request("https://openrouter.ai/api/v1/auth/key",
-                            headers={"Authorization": f"Bearer {keys['openrouter']}"})
+            auth_header = {"Authorization": f"Bearer {keys['openrouter']}"}
+            
+            # Get auth/key info (free tier, daily usage)
+            req = _ur.Request("https://openrouter.ai/api/v1/auth/key", headers=auth_header)
             with _ur.urlopen(req, timeout=8) as resp:
-                data = json.loads(resp.read()).get("data", {})
-                usage = data.get("usage", 0)
-                
-                # Читаем сохранённый депозит
-                state_path = os.path.expanduser("~/.hermes/balances_state.json")
-                total_deposited = 0
-                try:
-                    with open(state_path) as sf:
-                        state = json.load(sf)
-                        total_deposited = state.get("openrouter_deposited", 0)
-                except:
-                    pass
-                
-                remaining = max(0, total_deposited - usage) if total_deposited > 0 else None
-                balance_str = f"${remaining:.2f}" if remaining is not None else "?"
-                
-                result.append({
-                    "service": "OpenRouter",
-                    "icon": "🔗",
-                    "balance": balance_str,
-                    "usage": f"${usage:.2f}",
-                    "is_free": data.get("is_free_tier", True),
-                    "remaining": "∞",
-                    "requests_today": data.get("usage_daily", 0),
-                    "updated": now,
-                })
+                key_data = json.loads(resp.read()).get("data", {})
+            
+            # Get real credits balance from /api/v1/credits
+            total_credits = 0
+            total_usage = 0
+            try:
+                req2 = _ur.Request("https://openrouter.ai/api/v1/credits", headers=auth_header)
+                with _ur.urlopen(req2, timeout=8) as resp2:
+                    credits_data = json.loads(resp2.read()).get("data", {})
+                    total_credits = credits_data.get("total_credits", 0)
+                    total_usage = credits_data.get("total_usage", 0)
+            except:
+                pass
+            
+            remaining = max(0, total_credits - total_usage)
+            balance_str = f"${remaining:.2f}"
+            
+            result.append({
+                "service": "OpenRouter",
+                "icon": "🔗",
+                "balance": balance_str,
+                "usage": f"${total_usage:.2f}",
+                "total_credits": f"${total_credits:.2f}",
+                "remaining_requests": None,  # unlimited for OpenRouter
+                "is_free": key_data.get("is_free_tier", True),
+                "remaining": "∞",
+                "requests_today": key_data.get("usage_daily", 0),
+                "updated": now,
+            })
         except Exception as e:
             result.append({
                 "service": "OpenRouter", "icon": "🔗",
-                "balance": "?", "usage": "$0", "is_free": True,
+                "balance": "?", "usage": "$0", "total_credits": "—", "remaining_requests": None,
+                "is_free": True,
                 "requests_today": 0, "updated": now, "error": str(e)[:100],
             })
     
@@ -2906,7 +3011,9 @@ def get_balances():
                     "service": "DeepSeek",
                     "icon": "🐋",
                     "balance": f"${total:.2f}",
-                    "usage": "—",                     # API DeepSeek не отдаёт usage
+                    "usage": "—",
+                    "total_credits": "—",            # API DeepSeek не отдаёт историю пополнений
+                    "remaining_requests": None,
                     "is_free": total < 0.01,
                     "remaining": "—",
                     "requests_today": 0,
@@ -2915,11 +3022,38 @@ def get_balances():
         except Exception as e:
             result.append({
                 "service": "DeepSeek", "icon": "🐋",
-                "balance": "?", "usage": "$0", "is_free": True,
+                "balance": "?", "usage": "$0", "total_credits": "—", "remaining_requests": None,
+                "is_free": True,
                 "requests_today": 0, "updated": now, "error": str(e)[:100],
             })
     
     return {"balances": result, "updated": now}
+
+
+def _get_valid_symbols():
+    """Return set of all valid Binance USDT symbols (uppercase)."""
+    pairs = _fetch_binance_pairs()
+    if pairs:
+        return {p["id"] for p in pairs}
+    # Fallback to hardcoded
+    return set(SYMBOLS.values())
+
+
+def _get_symbol_display():
+    """Return list of {id, name, icon, vol} for frontend."""
+    pairs = _fetch_binance_pairs()
+    if pairs:
+        return pairs
+    # Fallback
+    return [{"id": v, "name": k, "quote": "USDT", "icon": _get_coin_icon(k), "vol": "?"} for k, v in SYMBOLS.items()]
+
+def _get_symbols_dict():
+    """Return {name: id} mapping for all USDT pairs (fallback to hardcoded)."""
+    pairs = _fetch_binance_pairs()
+    if not pairs:
+        return SYMBOLS
+    return {p["name"]: p["id"] for p in pairs}
+
 
 class Handler(BaseHTTPRequestHandler):
     def _json(self, data):
@@ -2977,25 +3111,6 @@ class Handler(BaseHTTPRequestHandler):
                     self._json({"error": f"Backtest not running (status: {bt.get('status')})"})
             else:
                 self._json({"error": "Unknown backtest ID"})
-        elif path == '/api/balances/deposit':
-            try:
-                length = int(self.headers.get('Content-Length', 0))
-                body = json.loads(self.rfile.read(length)) if length > 0 else {}
-                amount = float(body.get("amount", 0))
-                state_path = os.path.expanduser("~/.hermes/balances_state.json")
-                state = {}
-                try:
-                    with open(state_path) as sf:
-                        state = json.load(sf)
-                except:
-                    pass
-                state["openrouter_deposited"] = state.get("openrouter_deposited", 0) + amount
-                os.makedirs(os.path.dirname(state_path), exist_ok=True)
-                with open(state_path, "w") as sf:
-                    json.dump(state, sf)
-                self._json({"ok": True, "total_deposited": state["openrouter_deposited"]})
-            except Exception as e:
-                self._json({"error": str(e)})
         else:
             self.send_response(404)
             self.end_headers()
@@ -3009,7 +3124,7 @@ class Handler(BaseHTTPRequestHandler):
             symbol = qs.get('symbol', ['TONUSDT'])[0].upper()
             interval = qs.get('interval', ['5m'])[0]
             # Проверяем, что символ есть в списке
-            if symbol not in SYMBOLS.values():
+            if symbol not in _get_valid_symbols():
                 symbol = "TONUSDT"
             if interval not in INTERVALS:
                 interval = "5m"
@@ -3023,12 +3138,24 @@ class Handler(BaseHTTPRequestHandler):
             data["balance"]     = get_balance()
             data["tradesTotal"] = data["stats"]["total"]["trades"]
             data["tradesToday"] = data["stats"]["total"]["trades"]
-            data["symbols"]     = list(SYMBOLS.keys())
+            data["symbols"]     = _get_symbol_display()
             data["intervals"]   = list(INTERVALS.keys())
             self._json(data)
 
+        elif path == '/api/pairs':
+            offset = int(qs.get('offset', ['0'])[0])
+            limit = int(qs.get('limit', ['50'])[0])
+            search = qs.get('search', [''])[0].upper()
+            all_pairs = _fetch_binance_pairs()
+            if search:
+                filtered = [p for p in all_pairs if search in p["base"]]
+            else:
+                filtered = all_pairs
+            page = filtered[offset:offset + limit]
+            self._json({"pairs": page, "total": len(filtered), "offset": offset, "limit": limit})
+
         elif path == '/api/symbols':
-            self._json({"symbols": list(SYMBOLS.keys()), "intervals": list(INTERVALS.keys())})
+            self._json({"symbols": _get_symbol_display(), "intervals": list(INTERVALS.keys())})
 
         elif path == '/api/backtest/start':
             # Handled in do_POST
