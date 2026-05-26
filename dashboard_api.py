@@ -504,20 +504,33 @@ class BacktestRunner:
     
     @staticmethod
     def _run_rsi(candles, balance, leverage, position_size, bt, params, step_delay=0):
-        """RSI-стратегия (signal_v6)."""
+        """RSI-стратегия v3: volume-фильтр, динамические пороги, EMA 50.
+        Улучшения: пороги 25/75 для >=1h, volume > 120% среднего, EMA 50 фильтр тренда."""
         import time as _time
         closes = [c["close"] for c in candles]
         highs = [c["high"] for c in candles]
         lows = [c["low"] for c in candles]
+        volumes = [c.get("volume", 0) for c in candles]
+        from datetime import datetime
         
+        # Параметры
         SL_PCT = 0.012
         TP_PCT = 0.024
         COOLDOWN_BARS = 15
         
+        # Динамические пороги RSI — ужесточаем для старших таймфреймов
+        tf = params.get("timeframe", "15m")
+        if tf in ("1h", "4h", "1d"):
+            rsi_lo = 25
+            rsi_hi = 75
+        else:
+            rsi_lo = 30
+            rsi_hi = 70
+        
         trades = []
         equity = [balance]
         last_trade_bar = -COOLDOWN_BARS
-        position = None  # {type, entry, sl, tp, bar, margin}
+        position = None
         
         for i in range(50, len(closes)):
             if bt.get("cancelled"): break
@@ -525,14 +538,12 @@ class BacktestRunner:
             bt["progress"] = 30 + int(60 * i / len(closes))
             bt["candles_processed"] = i
             
-            # Live stats every 10 candles
             if i % 10 == 0 or i == len(closes) - 1:
                 wins = sum(1 for t in trades if t["pnl"] > 0)
                 bt["live_balance"] = round(balance, 2)
                 bt["live_trades"] = len(trades)
                 bt["live_win_rate"] = round(wins / len(trades) * 100, 1) if trades else 0
             
-            # Баланс обнулён?
             if balance <= 0:
                 bt["message"] = "⚠️ Баланс обнулён! Стратегия остановлена."
                 break
@@ -543,10 +554,21 @@ class BacktestRunner:
             losses = sum(max(window[j-1]-window[j], 0) for j in range(1, len(window)))
             rsi_val = 100 - (100/(1+gains/losses)) if losses > 0 else 100
             
+            # EMA 50 — фильтр тренда
+            ema50 = sum(closes[i-50:i+1]) / 50 if i >= 50 else closes[i]
+            
+            # Volume filter — объём > 120% от среднего за 20 свечей
+            if i >= 20:
+                avg_vol = sum(volumes[i-20:i]) / 20
+                vol_ok = volumes[i] > avg_vol * 1.2 if volumes[i] > 0 else True
+            else:
+                vol_ok = True
+            
             cur = closes[i]
             
             # Check open position
             if position:
+                # ... existing position logic ... (unchanged)
                 if position["type"] == "BUY":
                     if lows[i] <= position["sl"]:
                         exit_price = position["sl"]
@@ -588,16 +610,15 @@ class BacktestRunner:
                 last_trade_bar = i
                 continue
             
-            # Cooldown
             if i - last_trade_bar < COOLDOWN_BARS:
                 equity.append(balance)
                 continue
             
-            # Signal
             margin = position_size / leverage
             qty = position_size / cur
             
-            if rsi_val < 30:
+            # BUY: RSI < порог + цена выше EMA 50 (тренд вверх) + объём подтверждает
+            if rsi_val < rsi_lo and cur > ema50 and vol_ok:
                 sl = round(cur * (1 - SL_PCT), 4)
                 tp = round(cur * (1 + TP_PCT), 4)
                 position = {"type": "BUY", "entry": cur, "sl": sl, "tp": tp, "bar": i, "qty": qty, "margin": margin}
@@ -606,7 +627,8 @@ class BacktestRunner:
                     "price": round(cur, 4), "rsi": round(rsi_val, 1),
                     "sl": sl, "tp": tp
                 })
-            elif rsi_val > 75:
+            # SELL: RSI > порог + цена ниже EMA 50 (тренд вниз) + объём подтверждает
+            elif rsi_val > rsi_hi and cur < ema50 and vol_ok:
                 sl = round(cur * (1 + SL_PCT), 4)
                 tp = round(cur * (1 - TP_PCT), 4)
                 position = {"type": "SELL", "entry": cur, "sl": sl, "tp": tp, "bar": i, "qty": qty, "margin": margin}
@@ -638,15 +660,20 @@ class BacktestRunner:
     
     @staticmethod
     def _run_swing(candles, balance, leverage, position_size, bt, params, step_delay=0):
-        """SWING-стратегия."""
+        """SWING-стратегия v2: EMA 12/26, ADX-фильтр, динамический размер позиции.
+        Улучшения: EMA 12/26 вместо 9/21, ADX > 25, позиция -20% при высокой волатильности."""
         import time as _time
         closes = [c["close"] for c in candles]
         highs = [c["high"] for c in candles]
         lows = [c["low"] for c in candles]
+        from datetime import datetime
         
+        # Параметры
         SL_PCT = 0.025
         TP_PCT = 0.05
         COOLDOWN_BARS = 60
+        EMA_FAST = 12  # было 9
+        EMA_SLOW = 26  # было 21
         
         trades = []
         equity = [balance]
@@ -659,21 +686,52 @@ class BacktestRunner:
             bt["progress"] = 30 + int(60 * i / len(closes))
             bt["candles_processed"] = i
             
-            # Live stats every 10 candles
             if i % 10 == 0 or i == len(closes) - 1:
                 wins = sum(1 for t in trades if t["pnl"] > 0)
                 bt["live_balance"] = round(balance, 2)
                 bt["live_trades"] = len(trades)
                 bt["live_win_rate"] = round(wins / len(trades) * 100, 1) if trades else 0
             
-            # Баланс обнулён?
             if balance <= 0:
                 bt["message"] = "⚠️ Баланс обнулён! Стратегия остановлена."
                 break
             
-            window = closes[i-14:i+1]
-            gains = sum(max(window[j]-window[j-1], 0) for j in range(1, len(window)))
-            losses = sum(max(window[j-1]-window[j], 0) for j in range(1, len(window)))
+            # EMA 12 и 26
+            alpha_fast = 2 / (EMA_FAST + 1)
+            alpha_slow = 2 / (EMA_SLOW + 1)
+            ema_fast = closes[i]
+            ema_slow = closes[i]
+            for j in range(1, i+1):
+                if j >= EMA_FAST and j >= EMA_SLOW:
+                    break
+                if j < EMA_FAST:
+                    ema_fast = closes[i-j] * alpha_fast + ema_fast * (1 - alpha_fast)
+                if j < EMA_SLOW:
+                    ema_slow = closes[i-j] * alpha_slow + ema_slow * (1 - alpha_slow)
+            
+            # ADX — фильтр тренда (упрощённый: средний диапазон / среднее движение)
+            if i >= 20:
+                ranges = [highs[j] - lows[j] for j in range(i-20, i+1)]
+                moves = [abs(closes[j] - closes[j-1]) for j in range(i-19, i+1)]
+                avg_range = sum(ranges) / len(ranges)
+                avg_move = sum(moves) / len(moves)
+                adx_approx = (avg_move / avg_range * 100) if avg_range > 0 else 0
+                trend_ok = adx_approx > 25
+            else:
+                trend_ok = True
+            
+            # Волатильность для динамического размера позиции
+            if i >= 14:
+                returns = [(closes[j] - closes[j-1]) / closes[j-1] for j in range(i-13, i+1)]
+                volatility = (sum(r*r for r in returns) / len(returns)) ** 0.5
+                vol_factor = 0.8 if volatility > 0.015 else 1.0  # -20% при высокой волатильности
+            else:
+                vol_factor = 1.0
+            
+            # RSI (для контекста, не для сигналов)
+            rsi_window = closes[i-14:i+1]
+            gains = sum(max(rsi_window[j]-rsi_window[j-1], 0) for j in range(1, len(rsi_window)))
+            losses = sum(max(rsi_window[j-1]-rsi_window[j], 0) for j in range(1, len(rsi_window)))
             rsi_val = 100 - (100/(1+gains/losses)) if losses > 0 else 100
             
             cur = closes[i]
@@ -733,26 +791,28 @@ class BacktestRunner:
                 continue
             
             margin = position_size / leverage
-            qty = position_size / cur
+            qty = (position_size * vol_factor) / cur  # Динамический размер
             
-            if rsi_val < 30:
+            # BUY: EMA fast > EMA slow + ADX подтверждает тренд
+            if ema_fast > ema_slow and trend_ok:
                 sl = round(cur * (1 - SL_PCT), 4)
                 tp = round(cur * (1 + TP_PCT), 4)
                 entry_time = datetime.fromtimestamp(candles[i]["time"]).strftime("%Y-%m-%d %H:%M:%S")
                 position = {"type": "BUY", "entry": cur, "sl": sl, "tp": tp, "bar": i, "qty": qty, "margin": margin, "best": cur, "entry_time": entry_time}
                 bt["events"].append({
                     "ts": i, "type": "signal", "side": "BUY",
-                    "price": round(cur, 4), "rsi": round(rsi_val, 1),
+                    "price": round(cur, 4), "adx": round(adx_approx, 1),
                     "sl": sl, "tp": tp
                 })
-            elif rsi_val > 75:
+            # SELL: EMA fast < EMA slow + ADX подтверждает тренд
+            elif ema_fast < ema_slow and trend_ok:
                 sl = round(cur * (1 + SL_PCT), 4)
                 tp = round(cur * (1 - TP_PCT), 4)
                 entry_time = datetime.fromtimestamp(candles[i]["time"]).strftime("%Y-%m-%d %H:%M:%S")
                 position = {"type": "SELL", "entry": cur, "sl": sl, "tp": tp, "bar": i, "qty": qty, "margin": margin, "best": cur, "entry_time": entry_time}
                 bt["events"].append({
                     "ts": i, "type": "signal", "side": "SELL",
-                    "price": round(cur, 4), "rsi": round(rsi_val, 1),
+                    "price": round(cur, 4), "adx": round(adx_approx, 1),
                     "sl": sl, "tp": tp
                 })
             else:
@@ -779,20 +839,28 @@ class BacktestRunner:
     
     @staticmethod
     def _run_rsi_trailing(candles, balance, leverage, position_size, bt, params, step_delay=0):
-        """RSI с трейлинг-стопом — без фиксированного TP, SL скользит за ценой."""
+        """RSI Trailing v2: ATR-трейлинг, динамические пороги.
+        Улучшения: ATR-based стоп (2x), пороги 25/75 для >=1h."""
         import time as _time
         closes = [c["close"] for c in candles]
         highs = [c["high"] for c in candles]
         lows = [c["low"] for c in candles]
         
-        SL_PCT = 0.012        # 1.2% — расстояние трейлинг-стопа
         TRAIL_ACTIVATE = 0.005  # 0.5% — после этого стоп начинает скользить
         COOLDOWN_BARS = 15
+        ATR_MULT = 2.0  # 2x ATR для стопа
+        
+        # Динамические пороги
+        tf = params.get("timeframe", "15m")
+        if tf in ("1h", "4h", "1d"):
+            rsi_lo, rsi_hi = 25, 75
+        else:
+            rsi_lo, rsi_hi = 30, 70
         
         trades = []
         equity = [balance]
         last_trade_bar = -COOLDOWN_BARS
-        position = None  # {type, entry, sl, bar, qty, margin, best}
+        position = None
         
         for i in range(50, len(closes)):
             if bt.get("cancelled"): break
@@ -816,28 +884,35 @@ class BacktestRunner:
             losses = sum(max(window[j-1]-window[j], 0) for j in range(1, len(window)))
             rsi_val = 100 - (100/(1+gains/losses)) if losses > 0 else 100
             
+            # ATR(14) для динамического стопа
+            if i >= 14:
+                tr = [max(highs[j]-lows[j], abs(highs[j]-closes[j-1]), abs(lows[j]-closes[j-1])) 
+                      for j in range(i-13, i+1)]
+                atr = sum(tr) / len(tr)
+                sl_pct = (atr * ATR_MULT) / closes[i]
+            else:
+                sl_pct = 0.012  # Fallback 1.2%
+            
             cur = closes[i]
             
-            # Check position — только трейлинг-стоп
+            # Check position — трейлинг-стоп
             if position:
-                # Обновляем best и SL
                 if position["type"] == "BUY":
                     if cur > position["best"]:
                         position["best"] = cur
-                    # Активируем трейлинг после TRAIL_ACTIVATE
                     if position["best"] >= position["entry"] * (1 + TRAIL_ACTIVATE):
-                        position["sl"] = round(position["best"] * (1 - SL_PCT), 4)
-                    # Проверка: пробит ли SL?
+                        # ATR-трейлинг: стоп на расстоянии ATR*2 от лучшей цены
+                        position["sl"] = round(position["best"] * (1 - sl_pct), 4)
                     if lows[i] <= position["sl"]:
                         exit_price = position["sl"]
                         reason = "TRAILING_STOP"
                     else:
                         continue
-                else:  # SELL
+                else:
                     if cur < position["best"]:
                         position["best"] = cur
                     if position["best"] <= position["entry"] * (1 - TRAIL_ACTIVATE):
-                        position["sl"] = round(position["best"] * (1 + SL_PCT), 4)
+                        position["sl"] = round(position["best"] * (1 + sl_pct), 4)
                     if highs[i] >= position["sl"]:
                         exit_price = position["sl"]
                         reason = "TRAILING_STOP"
@@ -866,30 +941,28 @@ class BacktestRunner:
                 last_trade_bar = i
                 continue
             
-            # Cooldown
             if i - last_trade_bar < COOLDOWN_BARS:
                 equity.append(balance)
                 continue
             
-            # Signal — только RSI, без фильтров
             margin = position_size / leverage
             qty = position_size / cur
             
-            if rsi_val < 30:
-                sl = round(cur * (1 - SL_PCT), 4)
+            if rsi_val < rsi_lo:
+                sl = round(cur * (1 - sl_pct), 4)
                 position = {"type": "BUY", "entry": cur, "sl": sl, "bar": i, "qty": qty, "margin": margin, "best": cur}
                 bt["events"].append({
                     "ts": i, "type": "signal", "side": "BUY",
                     "price": round(cur, 4), "rsi": round(rsi_val, 1),
-                    "sl": sl, "tp": "TRAILING"
+                    "sl": sl, "atr": round(atr if i >= 14 else 0, 6), "tp": "TRAILING"
                 })
-            elif rsi_val > 75:
-                sl = round(cur * (1 + SL_PCT), 4)
+            elif rsi_val > rsi_hi:
+                sl = round(cur * (1 + sl_pct), 4)
                 position = {"type": "SELL", "entry": cur, "sl": sl, "bar": i, "qty": qty, "margin": margin, "best": cur}
                 bt["events"].append({
                     "ts": i, "type": "signal", "side": "SELL",
                     "price": round(cur, 4), "rsi": round(rsi_val, 1),
-                    "sl": sl, "tp": "TRAILING"
+                    "sl": sl, "atr": round(atr if i >= 14 else 0, 6), "tp": "TRAILING"
                 })
             else:
                 equity.append(balance)
@@ -916,8 +989,8 @@ class BacktestRunner:
     
     @staticmethod
     def _run_hammer(candles, balance, leverage, position_size, bt, params, step_delay=0):
-        """Hammer-стратегия: свечной паттерн Hammer (Молот) с RR 1:2.
-        Улучшения v2: SL 0.5%, подтверждение свечой, volume-фильтр, таймаут 30."""
+        """Hammer v3: volume > 130% среднего, RSI < 40, динамический SL 1.5x тени.
+        Улучшения: ужесточён volume-фильтр, добавлен RSI-контекст, SL от длины тени."""
         import time as _time
         closes = [c["close"] for c in candles]
         highs  = [c["high"]  for c in candles]
@@ -925,12 +998,14 @@ class BacktestRunner:
         opens  = [c["open"]  for c in candles]
         volumes = [c.get("volume", 0) for c in candles]
         
-        COOLDOWN_BARS = 5         # минимум свечей между сделками
-        RR_RATIO = 2.0            # Risk/Reward 1:2
-        TIMEOUT_BARS = 30         # выход по времени через 30 свечей
-        MIN_TREND_BARS = 3        # минимум свечей падения перед молотом
-        SL_BUFFER = 0.995         # стоп-лосс: 0.5% ниже минимума молота
-        VOL_PERIOD = 10           # период для расчёта среднего объёма
+        COOLDOWN_BARS = 5
+        RR_RATIO = 2.0
+        TIMEOUT_BARS = 30
+        MIN_TREND_BARS = 3
+        SL_SHADOW_MULT = 1.5      # SL = 1.5x длины тени (было 0.5%)
+        VOL_PERIOD = 20           # период объёма (было 10)
+        VOL_THRESHOLD = 1.3       # объём > 130% среднего (было 120%)
+        RSI_MAX_FOR_BUY = 40      # RSI < 40 для подтверждения перепроданности
         
         trades = []
         last_trade_bar = -COOLDOWN_BARS
@@ -965,7 +1040,7 @@ class BacktestRunner:
             if i < period:
                 return False
             avg_vol = sum(volumes[i-period:i]) / period
-            return volumes[i] > avg_vol * 1.2  # объём должен быть на 20% выше среднего
+            return volumes[i] > avg_vol * VOL_THRESHOLD  # объём на 30% выше среднего
         
         for i in range(10, len(closes)):
             if bt.get("cancelled"):
@@ -1030,8 +1105,18 @@ class BacktestRunner:
             if i - last_trade_bar < COOLDOWN_BARS:
                 continue
             
-            # Поиск молота
-            if is_hammer(i) and is_downtrend(i) and has_volume_confirmation(i):
+            # Поиск молота — с RSI-фильтром
+            # RSI < 40 для подтверждения перепроданности
+            if i >= 14:
+                rsi_window = closes[i-14:i+1]
+                rsi_gains = sum(max(rsi_window[j]-rsi_window[j-1], 0) for j in range(1, len(rsi_window)))
+                rsi_losses = sum(max(rsi_window[j-1]-rsi_window[j], 0) for j in range(1, len(rsi_window)))
+                rsi_val = 100 - (100/(1+rsi_gains/rsi_losses)) if rsi_losses > 0 else 100
+                rsi_ok = rsi_val < RSI_MAX_FOR_BUY
+            else:
+                rsi_ok = True
+            
+            if is_hammer(i) and is_downtrend(i) and has_volume_confirmation(i) and rsi_ok:
                 # Подтверждение: следующая свеча должна закрыться выше максимума молота
                 if i + 1 >= len(closes) or closes[i + 1] <= highs[i]:
                     continue  # нет подтверждения — пропускаем
@@ -1039,7 +1124,11 @@ class BacktestRunner:
                 # Вход на открытии свечи после подтверждения
                 entry_bar = i + 2 if i + 2 < len(closes) else i + 1
                 entry = closes[entry_bar]
-                sl = lows[i] * SL_BUFFER  # 0.5% ниже минимума молота
+                # Динамический SL: 1.5x длины нижней тени ниже минимума
+                shadow_len = min(opens[i], closes[i]) - lows[i]
+                sl = round(lows[i] - shadow_len * SL_SHADOW_MULT, 4)
+                if sl <= 0 or sl >= entry * 0.95:
+                    sl = round(entry * 0.98, 4)  # Fallback: 2% ниже входа
                 risk = entry - sl
                 if risk <= 0:
                     continue
