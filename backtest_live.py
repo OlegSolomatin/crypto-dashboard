@@ -105,13 +105,13 @@ def is_uptrend(candles, i, n=3):
     closes = [c["close"] for c in candles]
     return all(closes[i-j] > closes[i-j-1] for j in range(1, n+1))
 
-def volume_ok(candles, i, period=10):
+def volume_ok(candles, i, period=10, threshold=1.2):
     """Объём выше среднего?"""
     if i < period:
         return False
     vols = [c.get("volume", 0) for c in candles]
     avg = sum(vols[i-period:i]) / period
-    return vols[i] > avg * 1.2
+    return vols[i] > avg * threshold
 
 
 class LiveRunner:
@@ -324,7 +324,27 @@ class LiveRunner:
                                         candles[i]["_inv_hammer_signal"] = True
                                 
                                 elif strategy == "bullish_engulfing":
-                                    if detect_bullish_engulfing(candles, i) and volume_ok(candles, i):
+                                    # Усиленные фильтры: volume > 200%, RSI < 40, EMA 50
+                                    vol_ok = volume_ok(candles, i, period=20, threshold=2.0)
+                                    if detect_bullish_engulfing(candles, i) and vol_ok:
+                                        # RSI фильтр
+                                        if i >= 14:
+                                            rsi_window = closes[-15:]
+                                            rsi_g = sum(max(rsi_window[j]-rsi_window[j-1],0) for j in range(1,len(rsi_window)))
+                                            rsi_l = sum(max(rsi_window[j-1]-rsi_window[j],0) for j in range(1,len(rsi_window)))
+                                            rsi_v = 100-(100/(1+rsi_g/rsi_l)) if rsi_l>0 else 100
+                                            if rsi_v >= 40:
+                                                candles[i]["_bullish_engulfing_signal"] = True
+                                                continue
+                                        # EMA 50 фильтр
+                                        if i >= 50:
+                                            ema50 = closes[i-49]
+                                            mult = 2/51
+                                            for j in range(i-48, i+1):
+                                                ema50 = (closes[j]-ema50)*mult+ema50
+                                            if cur <= ema50:
+                                                candles[i]["_bullish_engulfing_signal"] = True
+                                                continue
                                         if i >= 1 and candles[i-1].get("_bullish_engulfing_signal"):
                                             be_c = candles[i-1]
                                             if cur > be_c["close"]:

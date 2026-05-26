@@ -1368,9 +1368,11 @@ class BacktestRunner:
         COOLDOWN_BARS = 5
         RR_RATIO = 2.0
         TIMEOUT_BARS = 30
-        VOL_PERIOD = 10
-        VOL_THRESHOLD = 1.2
-        SL_BUFFER = 0.995  # SL ниже минимума на 0.5%
+        VOL_PERIOD = 20
+        VOL_THRESHOLD = 2.0     # объём > 200% среднего (усилен)
+        SL_BUFFER = 0.995
+        RSI_MAX_FOR_BUY = 40    # RSI < 40 — фильтр перепроданности
+        EMA_PERIOD = 50         # трендовый фильтр EMA 50
         
         trades = []
         last_trade_bar = -COOLDOWN_BARS
@@ -1393,6 +1395,22 @@ class BacktestRunner:
                 return False
             avg_vol = sum(volumes[i-period:i]) / period
             return volumes[i] > avg_vol * VOL_THRESHOLD
+        
+        def calc_ema(values, period, i):
+            if i < period:
+                return None
+            multiplier = 2 / (period + 1)
+            ema = sum(values[i-period+1:i+1]) / period
+            for j in range(i-period+1, i+1):
+                ema = (values[j] - ema) * multiplier + ema
+            return ema
+        
+        def calc_rsi_at(closes_list, i, period=14):
+            if i < period + 1:
+                return 50
+            gains = sum(max(closes_list[j] - closes_list[j-1], 0) for j in range(i-period+1, i+1))
+            losses = sum(max(closes_list[j-1] - closes_list[j], 0) for j in range(i-period+1, i+1))
+            return 100 - (100 / (1 + gains/losses)) if losses > 0 else 100
         
         for i in range(10, len(closes)):
             if bt.get("cancelled"):
@@ -1448,6 +1466,14 @@ class BacktestRunner:
                 continue
             
             if is_bullish_engulfing(i) and has_volume_confirmation(i):
+                # RSI-фильтр: только при перепроданности
+                rsi_val = calc_rsi_at(closes, i)
+                if rsi_val >= RSI_MAX_FOR_BUY:
+                    continue
+                # EMA 50 тренд-фильтр: LONG только выше EMA
+                ema50 = calc_ema(closes, EMA_PERIOD, i)
+                if ema50 is not None and cur <= ema50:
+                    continue
                 # Подтверждение: следующая свеча зелёная
                 if i + 1 >= len(closes) or closes[i + 1] <= closes[i]:
                     continue
