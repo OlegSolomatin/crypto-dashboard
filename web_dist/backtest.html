@@ -751,6 +751,9 @@ async function loadHistory() {
     const data = await resp.json();
     const files = data.files || [];
     
+    // Sort by updated_at descending (newest first)
+    files.sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
+    
     document.getElementById('historyCount').textContent = files.length;
     const placeholder = document.getElementById('historyPlaceholder');
     const list = document.getElementById('historyList');
