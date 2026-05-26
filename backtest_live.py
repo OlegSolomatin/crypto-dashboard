@@ -48,6 +48,49 @@ def detect_inverted_hammer(candles, i):
             lower_shadow <= body * 0.3 and
             body_lower <= c["low"] + total_range * 0.3)
 
+def detect_bullish_engulfing(candles, i):
+    """Бычье поглощение: красная → зелёная полностью перекрывает тело предыдущей."""
+    if i < 1:
+        return False
+    prev, cur = candles[i-1], candles[i]
+    prev_bearish = prev["close"] < prev["open"]
+    cur_bullish = cur["close"] > cur["open"]
+    engulfs = cur["open"] <= prev["close"] and cur["close"] >= prev["open"]
+    prev_body = abs(prev["close"] - prev["open"])
+    cur_body = abs(cur["close"] - cur["open"])
+    return prev_bearish and cur_bullish and engulfs and prev_body > 0 and cur_body > 0
+
+def detect_morning_star(candles, i):
+    """Утренняя звезда: красная → доджи → зелёная выше середины первой."""
+    if i < 2:
+        return False
+    first, second, third = candles[i-2], candles[i-1], candles[i]
+    first_bearish = first["close"] < first["open"]
+    first_body = abs(first["close"] - first["open"])
+    second_body = abs(second["close"] - second["open"])
+    second_small = second_body < first_body * 0.3 if first_body > 0 else True
+    third_bullish = third["close"] > third["open"]
+    third_above_mid = third["close"] > (first["open"] + first["close"]) / 2
+    return first_bearish and second_small and third_bullish and third_above_mid
+
+def detect_piercing_line(candles, i):
+    """Пронизывающая линия: красная → зелёная открывается ниже минимума,
+    закрывается выше середины красной."""
+    if i < 1:
+        return False
+    prev, cur = candles[i-1], candles[i]
+    prev_bearish = prev["close"] < prev["open"]
+    cur_bullish = cur["close"] > cur["open"]
+    opens_below_prev_low = cur["open"] < prev["low"]
+    prev_body = abs(prev["close"] - prev["open"])
+    if prev_body == 0:
+        return False
+    prev_mid = (prev["open"] + prev["close"]) / 2
+    closes_above_mid = cur["close"] > prev_mid
+    closes_below_prev_open = cur["close"] < prev["open"]
+    return (prev_bearish and cur_bullish and opens_below_prev_low and
+            closes_above_mid and closes_below_prev_open)
+
 def is_downtrend(candles, i, n=3):
     """Последние n свечей падают?"""
     if i < n + 1:
@@ -279,6 +322,67 @@ class LiveRunner:
                                                         "tp": round(tp, 4),
                                                     })
                                         candles[i]["_inv_hammer_signal"] = True
+                                
+                                elif strategy == "bullish_engulfing":
+                                    if detect_bullish_engulfing(candles, i) and volume_ok(candles, i):
+                                        if i >= 1 and candles[i-1].get("_bullish_engulfing_signal"):
+                                            be_c = candles[i-1]
+                                            if cur > be_c["close"]:
+                                                sl = min(be_c["low"], candles[i-2]["low"] if i>=2 else be_c["low"]) * 0.995
+                                                risk = cur - sl
+                                                if risk > 0:
+                                                    tp = cur + risk * 2.0
+                                                    position = {
+                                                        "type": "BUY", "entry": cur, "sl": sl, "tp": tp,
+                                                        "bar": i, "qty": qty, "margin": margin, "best": cur,
+                                                    }
+                                                    bt["events"].append({
+                                                        "ts": i, "type": "signal", "side": "BUY",
+                                                        "price": round(cur, 4), "sl": round(sl, 4),
+                                                        "tp": round(tp, 4),
+                                                    })
+                                        candles[i]["_bullish_engulfing_signal"] = True
+                                
+                                elif strategy == "morning_star":
+                                    if detect_morning_star(candles, i) and volume_ok(candles, i):
+                                        if i >= 1 and candles[i-1].get("_morning_star_signal"):
+                                            ms_c = candles[i-1]
+                                            if cur > ms_c["close"]:
+                                                pattern_low = min(candles[i-2]["low"], candles[i-1]["low"], candles[i]["low"])
+                                                sl = pattern_low * 0.995
+                                                risk = cur - sl
+                                                if risk > 0:
+                                                    tp = cur + risk * 2.0
+                                                    position = {
+                                                        "type": "BUY", "entry": cur, "sl": sl, "tp": tp,
+                                                        "bar": i, "qty": qty, "margin": margin, "best": cur,
+                                                    }
+                                                    bt["events"].append({
+                                                        "ts": i, "type": "signal", "side": "BUY",
+                                                        "price": round(cur, 4), "sl": round(sl, 4),
+                                                        "tp": round(tp, 4),
+                                                    })
+                                        candles[i]["_morning_star_signal"] = True
+                                
+                                elif strategy == "piercing_line":
+                                    if detect_piercing_line(candles, i) and volume_ok(candles, i):
+                                        if i >= 1 and candles[i-1].get("_piercing_line_signal"):
+                                            pl_c = candles[i-1]
+                                            if cur > pl_c["close"]:
+                                                sl = min(pl_c["low"], candles[i-2]["low"] if i>=2 else pl_c["low"]) * 0.995
+                                                risk = cur - sl
+                                                if risk > 0:
+                                                    tp = cur + risk * 2.0
+                                                    position = {
+                                                        "type": "BUY", "entry": cur, "sl": sl, "tp": tp,
+                                                        "bar": i, "qty": qty, "margin": margin, "best": cur,
+                                                    }
+                                                    bt["events"].append({
+                                                        "ts": i, "type": "signal", "side": "BUY",
+                                                        "price": round(cur, 4), "sl": round(sl, 4),
+                                                        "tp": round(tp, 4),
+                                                    })
+                                        candles[i]["_piercing_line_signal"] = True
 
                             elif rsi_val < cfg["rsi_buy"]:
                                 sl = round(cur * (1 - sl_pct), 4)

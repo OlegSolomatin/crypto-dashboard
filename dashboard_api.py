@@ -470,6 +470,12 @@ class BacktestRunner:
                 report = BacktestRunner._run_hammer(candles, balance, leverage, position_size, bt, params, step_delay)
             elif strategy == "inverted_hammer":
                 report = BacktestRunner._run_inverted_hammer(candles, balance, leverage, position_size, bt, params, step_delay)
+            elif strategy == "bullish_engulfing":
+                report = BacktestRunner._run_bullish_engulfing(candles, balance, leverage, position_size, bt, params, step_delay)
+            elif strategy == "morning_star":
+                report = BacktestRunner._run_morning_star(candles, balance, leverage, position_size, bt, params, step_delay)
+            elif strategy == "piercing_line":
+                report = BacktestRunner._run_piercing_line(candles, balance, leverage, position_size, bt, params, step_delay)
             elif strategy == "rsi_trailing":
                 report = BacktestRunner._run_rsi_trailing(candles, balance, leverage, position_size, bt, params, step_delay)
             else:
@@ -1349,6 +1355,427 @@ class BacktestRunner:
         return BacktestRunner._build_report(trades, balance, params)
     
     @staticmethod
+    def _run_bullish_engulfing(candles, balance, leverage, position_size, bt, params, step_delay=0):
+        """Bullish Engulfing (Бычье поглощение): красная → зелёная с телом, полностью перекрывающим тело предыдущей.
+        LONG только. SL под минимумом паттерна, TP 1:2, volume-фильтр, подтверждение."""
+        import time as _time
+        closes = [c["close"] for c in candles]
+        highs  = [c["high"]  for c in candles]
+        lows   = [c["low"]   for c in candles]
+        opens  = [c["open"]  for c in candles]
+        volumes = [c.get("volume", 0) for c in candles]
+        
+        COOLDOWN_BARS = 5
+        RR_RATIO = 2.0
+        TIMEOUT_BARS = 30
+        VOL_PERIOD = 10
+        VOL_THRESHOLD = 1.2
+        SL_BUFFER = 0.995  # SL ниже минимума на 0.5%
+        
+        trades = []
+        last_trade_bar = -COOLDOWN_BARS
+        position = None
+        
+        def is_bullish_engulfing(i):
+            if i < 1:
+                return False
+            prev_body = abs(closes[i-1] - opens[i-1])
+            cur_body = abs(closes[i] - opens[i])
+            if prev_body == 0 or cur_body == 0:
+                return False
+            prev_bearish = closes[i-1] < opens[i-1]       # красная
+            cur_bullish = closes[i] > opens[i]              # зелёная
+            engulfs = opens[i] <= closes[i-1] and closes[i] >= opens[i-1]  # перекрывает тело
+            return prev_bearish and cur_bullish and engulfs
+        
+        def has_volume_confirmation(i, period=VOL_PERIOD):
+            if i < period:
+                return False
+            avg_vol = sum(volumes[i-period:i]) / period
+            return volumes[i] > avg_vol * VOL_THRESHOLD
+        
+        for i in range(10, len(closes)):
+            if bt.get("cancelled"):
+                break
+            if step_delay:
+                _time.sleep(step_delay)
+            bt["progress"] = 30 + int(60 * i / len(closes))
+            bt["candles_processed"] = i
+            
+            if i % 10 == 0 or i == len(closes) - 1:
+                wins = sum(1 for t in trades if t["pnl"] > 0)
+                bt["live_balance"] = round(balance, 2)
+                bt["live_trades"] = len(trades)
+                bt["live_win_rate"] = round(wins / len(trades) * 100, 1) if trades else 0
+            
+            if balance <= 0:
+                bt["message"] = "⚠️ Баланс обнулён!"
+                break
+            
+            cur = closes[i]
+            
+            if position:
+                hit_sl = (lows[i] <= position["sl"])
+                hit_tp = (highs[i] >= position["tp"])
+                timed_out = (i - position["bar"] >= TIMEOUT_BARS)
+                
+                if hit_sl:
+                    exit_price, reason = position["sl"], "STOP_LOSS"
+                elif hit_tp:
+                    exit_price, reason = position["tp"], "TAKE_PROFIT"
+                elif timed_out:
+                    exit_price, reason = cur, "TIMEOUT"
+                else:
+                    continue
+                
+                pnl = (exit_price - position["entry"]) * position["qty"]
+                commission = position["entry"] * position["qty"] * 0.0004 * 2
+                balance += pnl - commission
+                exit_time = datetime.fromtimestamp(candles[i]["time"]).strftime("%Y-%m-%d %H:%M:%S")
+                trades.append({
+                    "type": "BUY", "entry": round(position["entry"], 4),
+                    "exit": round(exit_price, 4), "pnl": round(pnl - commission, 4),
+                    "pnl_pct": round(pnl / (position["entry"] * position["qty"]) * 100, 2),
+                    "reason": reason, "bars": i - position["bar"],
+                    "detected_at": position.get("detected_at", ""),
+                    "entry_time": position.get("entry_time", ""),
+                    "exit_time": exit_time
+                })
+                position = None
+                continue
+            
+            if i - last_trade_bar < COOLDOWN_BARS:
+                continue
+            
+            if is_bullish_engulfing(i) and has_volume_confirmation(i):
+                # Подтверждение: следующая свеча зелёная
+                if i + 1 >= len(closes) or closes[i + 1] <= closes[i]:
+                    continue
+                
+                entry_bar = i + 2 if i + 2 < len(closes) else i + 1
+                entry = closes[entry_bar]
+                sl = round(min(lows[i-1], lows[i]) * SL_BUFFER, 4)
+                if sl <= 0 or sl >= entry * 0.95:
+                    sl = round(entry * 0.98, 4)
+                risk = entry - sl
+                if risk <= 0:
+                    continue
+                tp = entry + risk * RR_RATIO
+                
+                margin = position_size * leverage
+                qty = margin / entry
+                
+                entry_time = datetime.fromtimestamp(candles[entry_bar]["time"]).strftime("%Y-%m-%d %H:%M:%S")
+                detected_at = datetime.fromtimestamp(candles[i]["time"]).strftime("%Y-%m-%d %H:%M:%S")
+                
+                position = {
+                    "type": "BUY", "entry": entry, "sl": sl, "tp": tp,
+                    "bar": i, "qty": qty,
+                    "entry_time": entry_time, "detected_at": detected_at
+                }
+                last_trade_bar = i
+        
+        if position:
+            exit_price = closes[-1]
+            pnl = (exit_price - position["entry"]) * position["qty"]
+            commission = position["entry"] * position["qty"] * 0.0004 * 2
+            balance += pnl - commission
+            exit_time = datetime.fromtimestamp(candles[-1]["time"]).strftime("%Y-%m-%d %H:%M:%S")
+            trades.append({
+                "type": "BUY", "entry": round(position["entry"], 4),
+                "exit": round(exit_price, 4), "pnl": round(pnl - commission, 4),
+                "pnl_pct": round(pnl / (position["entry"] * position["qty"]) * 100, 2),
+                "reason": "END_OF_PERIOD", "bars": len(closes) - position["bar"],
+                "detected_at": position.get("detected_at", ""),
+                "entry_time": position.get("entry_time", ""),
+                "exit_time": exit_time
+            })
+        
+        return BacktestRunner._build_report(trades, balance, params)
+    
+    @staticmethod
+    def _run_morning_star(candles, balance, leverage, position_size, bt, params, step_delay=0):
+        """Morning Star (Утренняя звезда): красная → доджи → зелёная (разворот вверх).
+        LONG только. SL под минимумом трёх свечей, TP 1:2, volume-фильтр, подтверждение."""
+        import time as _time
+        closes = [c["close"] for c in candles]
+        highs  = [c["high"]  for c in candles]
+        lows   = [c["low"]   for c in candles]
+        opens  = [c["open"]  for c in candles]
+        volumes = [c.get("volume", 0) for c in candles]
+        
+        COOLDOWN_BARS = 5
+        RR_RATIO = 2.0
+        TIMEOUT_BARS = 30
+        VOL_PERIOD = 10
+        VOL_THRESHOLD = 1.2
+        SL_BUFFER = 0.995
+        
+        trades = []
+        last_trade_bar = -COOLDOWN_BARS
+        position = None
+        
+        def is_morning_star(i):
+            if i < 2:
+                return False
+            first_bearish = closes[i-2] < opens[i-2]
+            first_body = abs(closes[i-2] - opens[i-2])
+            second_body = abs(closes[i-1] - opens[i-1])
+            second_small = second_body < first_body * 0.3 if first_body > 0 else True
+            third_bullish = closes[i] > opens[i]
+            # Третья свеча закрывается выше середины первой
+            third_closes_above_mid = closes[i] > (opens[i-2] + closes[i-2]) / 2
+            return first_bearish and second_small and third_bullish and third_closes_above_mid
+        
+        def has_volume_confirmation(i, period=VOL_PERIOD):
+            if i < period:
+                return False
+            avg_vol = sum(volumes[i-period:i]) / period
+            return volumes[i] > avg_vol * VOL_THRESHOLD
+        
+        for i in range(10, len(closes)):
+            if bt.get("cancelled"):
+                break
+            if step_delay:
+                _time.sleep(step_delay)
+            bt["progress"] = 30 + int(60 * i / len(closes))
+            bt["candles_processed"] = i
+            
+            if i % 10 == 0 or i == len(closes) - 1:
+                wins = sum(1 for t in trades if t["pnl"] > 0)
+                bt["live_balance"] = round(balance, 2)
+                bt["live_trades"] = len(trades)
+                bt["live_win_rate"] = round(wins / len(trades) * 100, 1) if trades else 0
+            
+            if balance <= 0:
+                bt["message"] = "⚠️ Баланс обнулён!"
+                break
+            
+            cur = closes[i]
+            
+            if position:
+                hit_sl = (lows[i] <= position["sl"])
+                hit_tp = (highs[i] >= position["tp"])
+                timed_out = (i - position["bar"] >= TIMEOUT_BARS)
+                
+                if hit_sl:
+                    exit_price, reason = position["sl"], "STOP_LOSS"
+                elif hit_tp:
+                    exit_price, reason = position["tp"], "TAKE_PROFIT"
+                elif timed_out:
+                    exit_price, reason = cur, "TIMEOUT"
+                else:
+                    continue
+                
+                pnl = (exit_price - position["entry"]) * position["qty"]
+                commission = position["entry"] * position["qty"] * 0.0004 * 2
+                balance += pnl - commission
+                exit_time = datetime.fromtimestamp(candles[i]["time"]).strftime("%Y-%m-%d %H:%M:%S")
+                trades.append({
+                    "type": "BUY", "entry": round(position["entry"], 4),
+                    "exit": round(exit_price, 4), "pnl": round(pnl - commission, 4),
+                    "pnl_pct": round(pnl / (position["entry"] * position["qty"]) * 100, 2),
+                    "reason": reason, "bars": i - position["bar"],
+                    "detected_at": position.get("detected_at", ""),
+                    "entry_time": position.get("entry_time", ""),
+                    "exit_time": exit_time
+                })
+                position = None
+                continue
+            
+            if i - last_trade_bar < COOLDOWN_BARS:
+                continue
+            
+            if is_morning_star(i) and has_volume_confirmation(i):
+                # Подтверждение: следующая свеча зелёная
+                if i + 1 >= len(closes) or closes[i + 1] <= closes[i]:
+                    continue
+                
+                entry_bar = i + 2 if i + 2 < len(closes) else i + 1
+                entry = closes[entry_bar]
+                # SL под минимумом трёх свечей паттерна
+                pattern_low = min(lows[i-2], lows[i-1], lows[i])
+                sl = round(pattern_low * SL_BUFFER, 4)
+                if sl <= 0 or sl >= entry * 0.95:
+                    sl = round(entry * 0.98, 4)
+                risk = entry - sl
+                if risk <= 0:
+                    continue
+                tp = entry + risk * RR_RATIO
+                
+                margin = position_size * leverage
+                qty = margin / entry
+                
+                entry_time = datetime.fromtimestamp(candles[entry_bar]["time"]).strftime("%Y-%m-%d %H:%M:%S")
+                detected_at = datetime.fromtimestamp(candles[i]["time"]).strftime("%Y-%m-%d %H:%M:%S")
+                
+                position = {
+                    "type": "BUY", "entry": entry, "sl": sl, "tp": tp,
+                    "bar": i, "qty": qty,
+                    "entry_time": entry_time, "detected_at": detected_at
+                }
+                last_trade_bar = i
+        
+        if position:
+            exit_price = closes[-1]
+            pnl = (exit_price - position["entry"]) * position["qty"]
+            commission = position["entry"] * position["qty"] * 0.0004 * 2
+            balance += pnl - commission
+            exit_time = datetime.fromtimestamp(candles[-1]["time"]).strftime("%Y-%m-%d %H:%M:%S")
+            trades.append({
+                "type": "BUY", "entry": round(position["entry"], 4),
+                "exit": round(exit_price, 4), "pnl": round(pnl - commission, 4),
+                "pnl_pct": round(pnl / (position["entry"] * position["qty"]) * 100, 2),
+                "reason": "END_OF_PERIOD", "bars": len(closes) - position["bar"],
+                "detected_at": position.get("detected_at", ""),
+                "entry_time": position.get("entry_time", ""),
+                "exit_time": exit_time
+            })
+        
+        return BacktestRunner._build_report(trades, balance, params)
+    
+    @staticmethod
+    def _run_piercing_line(candles, balance, leverage, position_size, bt, params, step_delay=0):
+        """Piercing Line (Пронизывающая линия): красная → зелёная открывается ниже минимума красной,
+        закрывается выше середины красной. LONG только. SL под минимумом, TP 1:2."""
+        import time as _time
+        closes = [c["close"] for c in candles]
+        highs  = [c["high"]  for c in candles]
+        lows   = [c["low"]   for c in candles]
+        opens  = [c["open"]  for c in candles]
+        volumes = [c.get("volume", 0) for c in candles]
+        
+        COOLDOWN_BARS = 5
+        RR_RATIO = 2.0
+        TIMEOUT_BARS = 30
+        VOL_PERIOD = 10
+        VOL_THRESHOLD = 1.2
+        SL_BUFFER = 0.995
+        
+        trades = []
+        last_trade_bar = -COOLDOWN_BARS
+        position = None
+        
+        def is_piercing_line(i):
+            if i < 1:
+                return False
+            prev_bearish = closes[i-1] < opens[i-1]
+            cur_bullish = closes[i] > opens[i]
+            opens_below_prev_low = opens[i] < lows[i-1]
+            prev_body = abs(closes[i-1] - opens[i-1])
+            if prev_body == 0:
+                return False
+            prev_mid = (opens[i-1] + closes[i-1]) / 2
+            closes_above_mid = closes[i] > prev_mid
+            closes_below_prev_open = closes[i] < opens[i-1]
+            return (prev_bearish and cur_bullish and opens_below_prev_low and
+                    closes_above_mid and closes_below_prev_open)
+        
+        def has_volume_confirmation(i, period=VOL_PERIOD):
+            if i < period:
+                return False
+            avg_vol = sum(volumes[i-period:i]) / period
+            return volumes[i] > avg_vol * VOL_THRESHOLD
+        
+        for i in range(10, len(closes)):
+            if bt.get("cancelled"):
+                break
+            if step_delay:
+                _time.sleep(step_delay)
+            bt["progress"] = 30 + int(60 * i / len(closes))
+            bt["candles_processed"] = i
+            
+            if i % 10 == 0 or i == len(closes) - 1:
+                wins = sum(1 for t in trades if t["pnl"] > 0)
+                bt["live_balance"] = round(balance, 2)
+                bt["live_trades"] = len(trades)
+                bt["live_win_rate"] = round(wins / len(trades) * 100, 1) if trades else 0
+            
+            if balance <= 0:
+                bt["message"] = "⚠️ Баланс обнулён!"
+                break
+            
+            cur = closes[i]
+            
+            if position:
+                hit_sl = (lows[i] <= position["sl"])
+                hit_tp = (highs[i] >= position["tp"])
+                timed_out = (i - position["bar"] >= TIMEOUT_BARS)
+                
+                if hit_sl:
+                    exit_price, reason = position["sl"], "STOP_LOSS"
+                elif hit_tp:
+                    exit_price, reason = position["tp"], "TAKE_PROFIT"
+                elif timed_out:
+                    exit_price, reason = cur, "TIMEOUT"
+                else:
+                    continue
+                
+                pnl = (exit_price - position["entry"]) * position["qty"]
+                commission = position["entry"] * position["qty"] * 0.0004 * 2
+                balance += pnl - commission
+                exit_time = datetime.fromtimestamp(candles[i]["time"]).strftime("%Y-%m-%d %H:%M:%S")
+                trades.append({
+                    "type": "BUY", "entry": round(position["entry"], 4),
+                    "exit": round(exit_price, 4), "pnl": round(pnl - commission, 4),
+                    "pnl_pct": round(pnl / (position["entry"] * position["qty"]) * 100, 2),
+                    "reason": reason, "bars": i - position["bar"],
+                    "detected_at": position.get("detected_at", ""),
+                    "entry_time": position.get("entry_time", ""),
+                    "exit_time": exit_time
+                })
+                position = None
+                continue
+            
+            if i - last_trade_bar < COOLDOWN_BARS:
+                continue
+            
+            if is_piercing_line(i) and has_volume_confirmation(i):
+                if i + 1 >= len(closes) or closes[i + 1] <= closes[i]:
+                    continue
+                
+                entry_bar = i + 2 if i + 2 < len(closes) else i + 1
+                entry = closes[entry_bar]
+                sl = round(min(lows[i-1], lows[i]) * SL_BUFFER, 4)
+                if sl <= 0 or sl >= entry * 0.95:
+                    sl = round(entry * 0.98, 4)
+                risk = entry - sl
+                if risk <= 0:
+                    continue
+                tp = entry + risk * RR_RATIO
+                
+                margin = position_size * leverage
+                qty = margin / entry
+                
+                entry_time = datetime.fromtimestamp(candles[entry_bar]["time"]).strftime("%Y-%m-%d %H:%M:%S")
+                detected_at = datetime.fromtimestamp(candles[i]["time"]).strftime("%Y-%m-%d %H:%M:%S")
+                
+                position = {
+                    "type": "BUY", "entry": entry, "sl": sl, "tp": tp,
+                    "bar": i, "qty": qty,
+                    "entry_time": entry_time, "detected_at": detected_at
+                }
+                last_trade_bar = i
+        
+        if position:
+            exit_price = closes[-1]
+            pnl = (exit_price - position["entry"]) * position["qty"]
+            commission = position["entry"] * position["qty"] * 0.0004 * 2
+            balance += pnl - commission
+            exit_time = datetime.fromtimestamp(candles[-1]["time"]).strftime("%Y-%m-%d %H:%M:%S")
+            trades.append({
+                "type": "BUY", "entry": round(position["entry"], 4),
+                "exit": round(exit_price, 4), "pnl": round(pnl - commission, 4),
+                "pnl_pct": round(pnl / (position["entry"] * position["qty"]) * 100, 2),
+                "reason": "END_OF_PERIOD", "bars": len(closes) - position["bar"],
+                "detected_at": position.get("detected_at", ""),
+                "entry_time": position.get("entry_time", ""),
+                "exit_time": exit_time
+            })
+        
+        return BacktestRunner._build_report(trades, balance, params)
+    
+    @staticmethod
     def _build_report(trades, end_balance, params):
         start_balance = float(params["balance"])
         winning = [t for t in trades if t["pnl"] > 0]
@@ -1459,6 +1886,65 @@ def _save_backtest_report(job_id, params, report):
 
     return str(run_file), str(history_file)
 
+
+def _get_candle_source(params_block, pair, strategy_key, name_ru, desc, detector_sig, detector_body):
+    """Генерирует source_code для свечных стратегий по шаблону."""
+    func_name = detector_sig.split("(")[0]
+    return (params_block + f'"""\n{name_ru} — свечной паттерн разворота.\n{desc}.\nSL = min(low) × 0.995, TP = entry + риск × 2 (RR 1:2).\nТайм-аут: 30 свечей. Только LONG.\n"""\n\n'
+        'import time\n\n'
+        'COOLDOWN_BARS = 5\nRR_RATIO = 2.0\nTIMEOUT_BARS = 30\n'
+        'VOL_PERIOD = 10\nVOL_THRESHOLD = 1.2\nSL_BUFFER = 0.995\n\n'
+        f'def {detector_sig}:\n{detector_body}\n\n'
+        'def run(candles, balance, leverage, position_size):\n'
+        '    closes = [c["close"] for c in candles]\n'
+        '    highs  = [c["high"]  for c in candles]\n'
+        '    lows   = [c["low"]   for c in candles]\n'
+        '    opens  = [c["open"]  for c in candles]\n'
+        '    volumes = [c.get("volume", 0) for c in candles]\n\n'
+        '    trades = []\n'
+        '    last_trade_bar = -COOLDOWN_BARS\n'
+        '    position = None\n\n'
+        '    for i in range(10, len(closes)):\n'
+        '        if balance <= 0: break\n'
+        '        cur = closes[i]\n\n'
+        '        if position:\n'
+        '            if lows[i] <= position["sl"]:\n'
+        '                exit_px, reason = position["sl"], "STOP_LOSS"\n'
+        '            elif highs[i] >= position["tp"]:\n'
+        '                exit_px, reason = position["tp"], "TAKE_PROFIT"\n'
+        '            elif i - position["bar"] >= TIMEOUT_BARS:\n'
+        '                exit_px, reason = cur, "TIMEOUT"\n'
+        '            else: continue\n'
+        '            pnl = (exit_px - position["entry"]) * position["qty"]\n'
+        '            commission = position["entry"] * position["qty"] * 0.0008\n'
+        '            balance += pnl - commission\n'
+        '            trades.append({"entry": position["entry"], "exit": exit_px, "pnl": pnl, "reason": reason})\n'
+        '            position = None; continue\n\n'
+        '        if i - last_trade_bar < COOLDOWN_BARS: continue\n\n'
+        f'        if {func_name}(opens[i-1], closes[i-1], opens[i], closes[i])\n'
+        '            and volumes[i] > sum(volumes[i-VOL_PERIOD:i])/VOL_PERIOD * VOL_THRESHOLD\n'
+        '            and i + 1 < len(closes) and closes[i+1] > closes[i]:\n\n'
+        '            entry_bar = i + 2 if i + 2 < len(closes) else i + 1\n'
+        '            entry = closes[entry_bar]\n'
+        '            sl = round(min(lows[i-1], lows[i]) * SL_BUFFER, 4)\n'
+        '            if sl >= entry * 0.95: continue\n'
+        '            risk = entry - sl; tp = entry + risk * RR_RATIO\n'
+        '            margin = position_size * leverage; qty = margin / entry\n'
+        '            position = {"type": "BUY", "entry": entry, "sl": sl, "tp": tp, "bar": i, "qty": qty}\n'
+        '            last_trade_bar = i\n\n'
+        '    wins = sum(1 for t in trades if t["pnl"] > 0)\n'
+        '    return {\n'
+        '        "start_balance": float(params.get("balance", balance)),\n'
+        '        "end_balance": round(balance, 2),\n'
+        '        "net_pnl": round(balance - float(params.get("balance", balance)), 2),\n'
+        '        "total_trades": len(trades),\n'
+        '        "winning_trades": wins,\n'
+        '        "losing_trades": len(trades) - wins,\n'
+        '        "win_rate": round(wins/len(trades)*100,1) if trades else 0,\n'
+        '    }\n\n'
+        'if __name__ == "__main__":\n'
+        f'    print("Запустите через бэктестер на сайте: выберите {{PAIR}}, настройте параметры.")\n'
+    ).replace("{PAIR}", pair)
 
 def _get_strategy_source(strategy: str, params: dict = None, pair: str = "TONUSDT") -> str:
     """Возвращает исходный код стратегии как строку Python-скрипта."""
@@ -2203,6 +2689,38 @@ if __name__ == "__main__":
     print(f"P&L: ${report['net_pnl']} | Сделок: {report['total_trades']} | Винрейт: {report['win_rate']}%")
 '''.replace("{PAIR}", pair)
         return code
+
+    elif strategy == "bullish_engulfing":
+        return _get_candle_source(params_block, pair, "bullish_engulfing",
+            "Бычье поглощение", "Красная → зелёная перекрывает тело предыдущей",
+            "is_bullish_engulfing(prev_open, prev_close, cur_open, cur_close)",
+            """    prev_bearish = prev_close < prev_open
+    cur_bullish = cur_close > cur_open
+    engulfs = cur_open <= prev_close and cur_close >= prev_open
+    return prev_bearish and cur_bullish and engulfs""")
+
+    elif strategy == "morning_star":
+        return _get_candle_source(params_block, pair, "morning_star",
+            "Утренняя звезда", "3 свечи: красная → доджи → зелёная в середине первой",
+            "is_morning_star(c1_open, c1_close, c2_body, c3_open, c3_close)",
+            """    first_bearish = c1_close < c1_open
+    first_body = abs(c1_close - c1_open)
+    second_small = c2_body < first_body * 0.3 if first_body > 0 else True
+    third_bullish = c3_close > c3_open
+    third_above_mid = c3_close > (c1_open + c1_close) / 2
+    return first_bearish and second_small and third_bullish and third_above_mid""")
+
+    elif strategy == "piercing_line":
+        return _get_candle_source(params_block, pair, "piercing_line",
+            "Пронизывающая линия", "Открытие ниже минимума → закрытие выше середины",
+            "is_piercing_line(prev_open, prev_close, prev_low, cur_open, cur_close)",
+            """    prev_bearish = prev_close < prev_open
+    cur_bullish = cur_close > cur_open
+    opens_below = cur_open < prev_low
+    prev_mid = (prev_open + prev_close) / 2
+    closes_above_mid = cur_close > prev_mid
+    closes_below_prev_open = cur_close < prev_open
+    return prev_bearish and cur_bullish and opens_below and closes_above_mid and closes_below_prev_open""")
 
     else:
         return f"# Стратегия '{strategy}' — исходный код недоступен\\n"

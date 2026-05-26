@@ -41,6 +41,27 @@ STRATEGY_CONFIG = {
         "trailing": False, "trail_activate": None,
         "type": "candle",
     },
+    "bullish_engulfing": {
+        "name": "Bullish Engulfing (Бычье поглощение)",
+        "sl_pct": 0.005, "tp_pct": None,
+        "cooldown_bars": 5, "rsi_buy": None, "rsi_sell": None,
+        "trailing": False, "trail_activate": None,
+        "type": "candle",
+    },
+    "morning_star": {
+        "name": "Morning Star (Утренняя звезда)",
+        "sl_pct": 0.005, "tp_pct": None,
+        "cooldown_bars": 5, "rsi_buy": None, "rsi_sell": None,
+        "trailing": False, "trail_activate": None,
+        "type": "candle",
+    },
+    "piercing_line": {
+        "name": "Piercing Line (Пронизывающая линия)",
+        "sl_pct": 0.005, "tp_pct": None,
+        "cooldown_bars": 5, "rsi_buy": None, "rsi_sell": None,
+        "trailing": False, "trail_activate": None,
+        "type": "candle",
+    },
 }
 
 # === RSI ===
