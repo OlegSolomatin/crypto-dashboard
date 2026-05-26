@@ -2861,11 +2861,26 @@ def get_balances():
                             headers={"Authorization": f"Bearer {keys['openrouter']}"})
             with _ur.urlopen(req, timeout=8) as resp:
                 data = json.loads(resp.read()).get("data", {})
+                usage = data.get("usage", 0)
+                
+                # Читаем сохранённый депозит
+                state_path = os.path.expanduser("~/.hermes/balances_state.json")
+                total_deposited = 0
+                try:
+                    with open(state_path) as sf:
+                        state = json.load(sf)
+                        total_deposited = state.get("openrouter_deposited", 0)
+                except:
+                    pass
+                
+                remaining = max(0, total_deposited - usage) if total_deposited > 0 else None
+                balance_str = f"${remaining:.2f}" if remaining is not None else "?"
+                
                 result.append({
                     "service": "OpenRouter",
                     "icon": "🔗",
-                    "balance": "∞",                    # prepaid — безлимитный ключ
-                    "usage": f"${data.get('usage', 0):.2f}",  # сколько потрачено
+                    "balance": balance_str,
+                    "usage": f"${usage:.2f}",
                     "is_free": data.get("is_free_tier", True),
                     "remaining": "∞",
                     "requests_today": data.get("usage_daily", 0),
@@ -3092,6 +3107,27 @@ class Handler(BaseHTTPRequestHandler):
 
         elif path == '/api/balances':
             self._json(get_balances())
+
+        elif path == '/api/balances/deposit':
+            # Update OpenRouter deposited amount
+            try:
+                length = int(self.headers.get('Content-Length', 0))
+                body = json.loads(self.rfile.read(length)) if length > 0 else {}
+                amount = float(body.get("amount", 0))
+                state_path = os.path.expanduser("~/.hermes/balances_state.json")
+                state = {}
+                try:
+                    with open(state_path) as sf:
+                        state = json.load(sf)
+                except:
+                    pass
+                state["openrouter_deposited"] = state.get("openrouter_deposited", 0) + amount
+                os.makedirs(os.path.dirname(state_path), exist_ok=True)
+                with open(state_path, "w") as sf:
+                    json.dump(state, sf)
+                self._json({"ok": True, "total_deposited": state["openrouter_deposited"]})
+            except Exception as e:
+                self._json({"error": str(e)})
 
         elif path == '/' or path == '/dashboard':
             html = Path("/home/oleg/workspace/crypto-ton/dashboard.html").read_text()
