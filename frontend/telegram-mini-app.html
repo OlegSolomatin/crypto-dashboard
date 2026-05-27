@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MOE — Mini App</title>
+<title>MOE — Главная</title>
 <meta name="theme-color" content="#08081c">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -11,18 +11,11 @@
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" type="image/svg+xml" href="/icon-dark.svg">
 <link rel="icon" type="image/png" sizes="192x192" href="/icon-dark-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/icon-dark.png">
 <link rel="apple-touch-icon" href="/icon-dark-180.png" media="(prefers-color-scheme: dark)">
 <link rel="apple-touch-icon" href="/icon-light-180.png" media="(prefers-color-scheme: light)">
 <style>
 :root{--bg:#08081c;--accent:#7c5cfc;--green:#10b981;--tile:#0f0f2e;--border:rgba(124,92,252,0.15);--text:#e0e0f0;--muted:#8888aa}
-[data-theme="light"]{--bg:#f4f4f9;--tile:#ffffff;--border:rgba(124,92,252,0.15);--text:#1a1a2e;--muted:#6b7280}
-[data-theme="light"] .tile:hover{background:#f0f0f5}
-.theme-toggle-wrap{display:flex;align-items:center}
-.theme-toggle{position:relative;display:flex;background:var(--tile);border-radius:20px;padding:2px;gap:0;border:1px solid var(--border)}
-.theme-option{width:34px;height:26px;border:none;background:transparent;font-size:13px;cursor:pointer;border-radius:17px;display:flex;align-items:center;justify-content:center;transition:all .15s;position:relative;z-index:1;padding:0;line-height:1;-webkit-tap-highlight-color:transparent;outline:none}
-.theme-option:hover{opacity:0.8}
-.theme-option.active{color:#fff}
-.theme-slider{position:absolute;width:34px;height:26px;background:var(--accent);border-radius:17px;top:2px;left:2px;transition:left .3s cubic-bezier(0.4,0,0.2,1);z-index:0}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:16px}
 header{width:100%;max-width:420px;display:flex;justify-content:space-between;align-items:center;padding:12px 0;margin-bottom:24px}
@@ -41,6 +34,7 @@ header{width:100%;max-width:420px;display:flex;justify-content:space-between;ali
 .badge-ai{background:rgba(124,92,252,0.15);color:var(--accent)}
 .badge-trade{background:rgba(16,185,129,0.12);color:var(--green)}
 .badge-media{background:rgba(239,68,68,0.12);color:#f87171}
+.badge-api{background:rgba(124,92,252,0.12);color:var(--accent)}
 footer{width:100%;max-width:420px;text-align:center;margin-top:32px;font-size:11px;color:var(--muted)}
 footer a{color:var(--accent);text-decoration:none}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
@@ -48,12 +42,15 @@ footer a{color:var(--accent);text-decoration:none}
 .tile:nth-child(2){animation-delay:.1s}
 .tile:nth-child(3){animation-delay:.2s}
 .tile:nth-child(4){animation-delay:.3s}
+.tile:nth-child(5){animation-delay:.4s}
+.tile:nth-child(6){animation-delay:.5s}
+.tile:nth-child(7){animation-delay:.6s}
+.tile:nth-child(8){animation-delay:.7s}
 @media (min-width:769px){
   .grid{grid-template-columns:repeat(2,200px);justify-content:center;max-width:440px}
   .tile{max-height:200px}
 }
 </style>
-<script src="theme.js"></script>
 </head>
 <body>
 
@@ -62,7 +59,6 @@ footer a{color:var(--accent);text-decoration:none}
     <div class="logo-icon">⚡</div>
     <span>HermesAI</span>
   </div>
-  <div class="theme-toggle-wrap"></div>
   <div class="time-block">
     <div class="clock" id="clock">--:--</div>
     <div class="weather" id="weather">—°C</div>
@@ -75,6 +71,24 @@ footer a{color:var(--accent);text-decoration:none}
     <span class="tile-icon">📊</span>
     <span class="tile-title">Trading</span>
     <span class="tile-sub">Дашборд · Сделки · Сигналы</span>
+  </a>
+  <a class="tile" href="/brain.html">
+    <span class="tile-badge badge-ai">AI</span>
+    <span class="tile-icon">🧠</span>
+    <span class="tile-title">Второй мозг</span>
+    <span class="tile-sub">Заметки · Граф знаний</span>
+  </a>
+  <a class="tile" href="/moscow_timeline.html">
+    <span class="tile-badge badge-trade">LIVE</span>
+    <span class="tile-icon">🗺</span>
+    <span class="tile-title">Москва</span>
+    <span class="tile-sub">События · Аэропорты · Такси</span>
+  </a>
+  <a class="tile" href="/balances.html">
+    <span class="tile-badge badge-api">API</span>
+    <span class="tile-icon">💳</span>
+    <span class="tile-title">Балансы</span>
+    <span class="tile-sub">OpenRouter · DeepSeek</span>
   </a>
   <a class="tile" href="https://hermes.pfumiko.ru" target="_blank">
     <span class="tile-badge badge-ai">AI</span>
@@ -94,6 +108,12 @@ footer a{color:var(--accent);text-decoration:none}
     <span class="tile-title">Музыка</span>
     <span class="tile-sub">Вся коллекция · Онлайн</span>
   </a>
+  <a class="tile" href="/health.html">
+    <span class="tile-badge badge-ai">AI</span>
+    <span class="tile-icon">🩺</span>
+    <span class="tile-title">Монитор</span>
+    <span class="tile-sub">Агенты · Здоровье · Статус</span>
+  </a>
 </div>
 
 <footer>
@@ -101,7 +121,6 @@ footer a{color:var(--accent);text-decoration:none}
 </footer>
 
 <script>
-injectThemeToggle('.theme-toggle-wrap');
 function updateTime(){
   const now=new Date();
   const msk=new Date(now.toLocaleString('en-US',{timeZone:'Europe/Moscow'}));
@@ -111,7 +130,6 @@ function updateTime(){
 }
 updateTime();setInterval(updateTime,30000);
 
-// Weather (Open-Meteo, Kolomna lat=55.08 lon=38.78)
 fetch('https://api.open-meteo.com/v1/forecast?latitude=55.08&longitude=38.78&current=temperature_2m&timezone=Europe/Moscow')
   .then(r=>r.json())
   .then(d=>{
@@ -120,6 +138,5 @@ fetch('https://api.open-meteo.com/v1/forecast?latitude=55.08&longitude=38.78&cur
   })
   .catch(()=>{});
 </script>
-<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{})}</script>
 </body>
 </html>

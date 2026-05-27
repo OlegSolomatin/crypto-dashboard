@@ -1,0 +1,257 @@
+{
+  "checked_at": "2026-05-27T19:10:18.233756+03:00",
+  "total": 18,
+  "ok": 10,
+  "warn": 0,
+  "error": 8,
+  "agents": [
+    {
+      "name": "analyst",
+      "status": "ok",
+      "has_inventory": true,
+      "profile": {
+        "profile_exists": true,
+        "has_config": true,
+        "has_env": true
+      },
+      "has_alias": true,
+      "issues": []
+    },
+    {
+      "name": "coder",
+      "status": "ok",
+      "has_inventory": true,
+      "profile": {
+        "profile_exists": true,
+        "has_config": true,
+        "has_env": true
+      },
+      "has_alias": true,
+      "issues": []
+    },
+    {
+      "name": "cost-tracker",
+      "status": "error",
+      "has_inventory": true,
+      "profile": {
+        "profile_exists": false,
+        "has_config": false,
+        "has_env": false
+      },
+      "has_alias": false,
+      "issues": [
+        "Нет профиля",
+        "Нет config.yaml",
+        "Нет ярлыка"
+      ]
+    },
+    {
+      "name": "data-analyst",
+      "status": "ok",
+      "has_inventory": true,
+      "profile": {
+        "profile_exists": true,
+        "has_config": true,
+        "has_env": true
+      },
+      "has_alias": true,
+      "issues": []
+    },
+    {
+      "name": "default",
+      "status": "error",
+      "has_inventory": true,
+      "profile": {
+        "profile_exists": false,
+        "has_config": false,
+        "has_env": false
+      },
+      "has_alias": false,
+      "issues": [
+        "Нет профиля",
+        "Нет config.yaml",
+        "Нет ярлыка"
+      ]
+    },
+    {
+      "name": "delegator",
+      "status": "ok",
+      "has_inventory": true,
+      "profile": {
+        "profile_exists": true,
+        "has_config": true,
+        "has_env": true
+      },
+      "has_alias": true,
+      "issues": []
+    },
+    {
+      "name": "designer",
+      "status": "ok",
+      "has_inventory": true,
+      "profile": {
+        "profile_exists": true,
+        "has_config": true,
+        "has_env": true
+      },
+      "has_alias": true,
+      "issues": []
+    },
+    {
+      "name": "devops",
+      "status": "ok",
+      "has_inventory": true,
+      "profile": {
+        "profile_exists": true,
+        "has_config": true,
+        "has_env": true
+      },
+      "has_alias": true,
+      "issues": []
+    },
+    {
+      "name": "health-monitor",
+      "status": "error",
+      "has_inventory": true,
+      "profile": {
+        "profile_exists": false,
+        "has_config": false,
+        "has_env": false
+      },
+      "has_alias": false,
+      "issues": [
+        "Нет профиля",
+        "Нет config.yaml",
+        "Нет ярлыка"
+      ]
+    },
+    {
+      "name": "planner",
+      "status": "ok",
+      "has_inventory": true,
+      "profile": {
+        "profile_exists": true,
+        "has_config": true,
+        "has_env": true
+      },
+      "has_alias": true,
+      "issues": []
+    },
+    {
+      "name": "preloader",
+      "status": "ok",
+      "has_inventory": true,
+      "profile": {
+        "profile_exists": true,
+        "has_config": true,
+        "has_env": true
+      },
+      "has_alias": true,
+      "issues": []
+    },
+    {
+      "name": "reporter",
+      "status": "error",
+      "has_inventory": true,
+      "profile": {
+        "profile_exists": false,
+        "has_config": false,
+        "has_env": false
+      },
+      "has_alias": false,
+      "issues": [
+        "Нет профиля",
+        "Нет config.yaml",
+        "Нет ярлыка"
+      ]
+    },
+    {
+      "name": "reviewer",
+      "status": "error",
+      "has_inventory": true,
+      "profile": {
+        "profile_exists": false,
+        "has_config": false,
+        "has_env": false
+      },
+      "has_alias": false,
+      "issues": [
+        "Нет профиля",
+        "Нет config.yaml",
+        "Нет ярлыка"
+      ]
+    },
+    {
+      "name": "security-auditor",
+      "status": "error",
+      "has_inventory": true,
+      "profile": {
+        "profile_exists": false,
+        "has_config": false,
+        "has_env": false
+      },
+      "has_alias": false,
+      "issues": [
+        "Нет профиля",
+        "Нет config.yaml",
+        "Нет ярлыка"
+      ]
+    },
+    {
+      "name": "technical-writer",
+      "status": "error",
+      "has_inventory": true,
+      "profile": {
+        "profile_exists": false,
+        "has_config": false,
+        "has_env": false
+      },
+      "has_alias": false,
+      "issues": [
+        "Нет профиля",
+        "Нет config.yaml",
+        "Нет ярлыка"
+      ]
+    },
+    {
+      "name": "tester",
+      "status": "error",
+      "has_inventory": true,
+      "profile": {
+        "profile_exists": false,
+        "has_config": false,
+        "has_env": false
+      },
+      "has_alias": false,
+      "issues": [
+        "Нет профиля",
+        "Нет config.yaml",
+        "Нет ярлыка"
+      ]
+    },
+    {
+      "name": "trading-analyst",
+      "status": "ok",
+      "has_inventory": true,
+      "profile": {
+        "profile_exists": true,
+        "has_config": true,
+        "has_env": true
+      },
+      "has_alias": true,
+      "issues": []
+    },
+    {
+      "name": "translator",
+      "status": "ok",
+      "has_inventory": true,
+      "profile": {
+        "profile_exists": true,
+        "has_config": true,
+        "has_env": true
+      },
+      "has_alias": true,
+      "issues": []
+    }
+  ]
+}

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MOE — Монитор агентов</title>
+<meta name="apple-mobile-web-app-title" content="MOE">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon-dark.svg" type="image/svg+xml" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="/icon-light.svg" type="image/svg+xml" media="(prefers-color-scheme: light)">
+<link rel="apple-touch-icon" href="/icon-light-180.png">
+<style>
+:root{--bg:#08081c;--accent:#7c5cfc;--green:#10b981;--red:#ef4444;--yellow:#f59e0b;--tile:#0f0f2e;--border:rgba(124,92,252,0.15);--text:#e0e0f0;--muted:#8888aa;--radius:16px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:16px}
+.container{width:100%;max-width:640px}
+
+/* Header */
+.page-header{display:flex;align-items:center;gap:14px;margin-bottom:20px;padding:12px 0}
+.back-btn{display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:12px;background:var(--tile);border:1px solid var(--border);color:var(--text);text-decoration:none;font-size:18px;transition:all .2s;flex-shrink:0}
+.back-btn:hover{background:#14143a;border-color:var(--accent)}
+.page-info{flex:1;min-width:0}
+.page-title{font-size:20px;font-weight:700}
+.page-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.refresh-btn{display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:10px;background:var(--accent);color:#fff;border:none;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap}
+.refresh-btn:hover{opacity:.85;transform:scale(1.02)}
+.refresh-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+/* Summary bar */
+.summary{display:flex;gap:10px;margin-bottom:20px}
+.summary-card{flex:1;background:var(--tile);border:1px solid var(--border);border-radius:14px;padding:14px;text-align:center}
+.summary-card .num{font-size:28px;font-weight:800;line-height:1.1}
+.summary-card .lbl{font-size:11px;color:var(--muted);margin-top:4px}
+.summary-card.ok .num{color:var(--green)}
+.summary-card.warn .num{color:var(--yellow)}
+.summary-card.err .num{color:var(--red)}
+.summary-card.all .num{color:var(--accent)}
+
+/* Last check time */
+.last-check{text-align:center;font-size:11px;color:var(--muted);margin-bottom:18px}
+.last-check .countdown{color:var(--accent);font-weight:600}
+
+/* Agent grid */
+.agent-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:24px}
+@media(min-width:769px){.agent-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:380px){.agent-grid{grid-template-columns:1fr}}
+
+.agent-card{background:var(--tile);border:1px solid var(--border);border-radius:14px;padding:14px;transition:all .2s;cursor:default}
+.agent-card:hover{background:#14143a;border-color:var(--accent)}
+.agent-card.ok{border-left:3px solid var(--green)}
+.agent-card.warn{border-left:3px solid var(--yellow)}
+.agent-card.err{border-left:3px solid var(--red)}
+.agent-card .top-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.agent-card .icon{font-size:24px;flex-shrink:0}
+.agent-card .name{font-size:14px;font-weight:700;text-transform:capitalize}
+.agent-card .status-dot{width:8px;height:8px;border-radius:50%;margin-left:auto;flex-shrink:0}
+.agent-card.ok .status-dot{background:var(--green);box-shadow:0 0 8px var(--green)}
+.agent-card.warn .status-dot{background:var(--yellow);box-shadow:0 0 8px var(--yellow)}
+.agent-card.err .status-dot{background:var(--red);box-shadow:0 0 8px var(--red)}
+.agent-card .checks{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}
+.agent-card .check{font-size:10px;padding:2px 8px;border-radius:6px;background:rgba(16,185,129,0.1);color:var(--green)}
+.agent-card .check.fail{background:rgba(239,68,68,0.1);color:var(--red)}
+.agent-card .issues{font-size:10px;color:var(--red);line-height:1.5}
+.agent-card .issues span{display:block}
+
+/* Footer */
+footer{width:100%;max-width:640px;text-align:center;margin-top:auto;padding:20px 0;font-size:11px;color:var(--muted)}
+
+/* Pulse animation */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.pulse{animation:pulse 2s infinite}
+
+/* Skeleton loading */
+.skeleton{background:linear-gradient(90deg,var(--tile) 25%,#14143a 50%,var(--tile) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:8px}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="page-header">
+    <a class="back-btn" href="/" title="На главную">←</a>
+    <div class="page-info">
+      <div class="page-title">🩺 Монитор агентов</div>
+      <div class="page-sub">Состояние всех 18 агентов системы</div>
+    </div>
+    <button class="refresh-btn" onclick="refresh()" id="refreshBtn">
+      🔄 Обновить
+    </button>
+  </div>
+
+  <div class="summary" id="summary">
+    <div class="summary-card all"><div class="num" id="totalNum">—</div><div class="lbl">Всего</div></div>
+    <div class="summary-card ok"><div class="num" id="okNum">—</div><div class="lbl">✅ OK</div></div>
+    <div class="summary-card warn"><div class="num" id="warnNum">—</div><div class="lbl">⚠️ Предупр.</div></div>
+    <div class="summary-card err"><div class="num" id="errNum">—</div><div class="lbl">🔴 Ошибки</div></div>
+  </div>
+
+  <div class="last-check" id="lastCheck">Загрузка...</div>
+
+  <div class="agent-grid" id="agentGrid"></div>
+</div>
+
+<footer>Agent Control Room · Level 5 · Fully Automated Team</footer>
+
+<script>
+const AGENT_ICONS = {
+  translator:'🌐', planner:'📋', analyst:'🧠', delegator:'🎯',
+  preloader:'📥', coder:'💻', designer:'🎨', 'data-analyst':'📈',
+  devops:'⚙️', 'trading-analyst':'📊', reviewer:'🔍', tester:'🧪',
+  reporter:'📝', 'technical-writer':'📖', 'cost-tracker':'💰',
+  'security-auditor':'🛡️', 'health-monitor':'🩺', default:'🤖'
+};
+
+async function loadData(){
+  try{
+    const resp = await fetch('/health-data.json?_='+Date.now());
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    const data = await resp.json();
+    render(data);
+  }catch(e){
+    document.getElementById('agentGrid').innerHTML =
+      '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">❌ Не удалось загрузить данные<br><small>'+e.message+'</small></div>';
+  }
+}
+
+function render(data){
+  // Summary
+  document.getElementById('totalNum').textContent = data.total;
+  document.getElementById('okNum').textContent = data.ok;
+  document.getElementById('warnNum').textContent = data.warn;
+  document.getElementById('errNum').textContent = data.error;
+
+  // Timestamp
+  const ts = data.checked_at ? new Date(data.checked_at).toLocaleString('ru-RU',{timeZone:'Europe/Moscow'}) : '?';
+  document.getElementById('lastCheck').innerHTML = '🕐 Проверено: <b>'+ts+' МСК</b>';
+
+  // Agent cards
+  const grid = document.getElementById('agentGrid');
+  grid.innerHTML = '';
+
+  const statusLabels = {ok:'✅ OK', warn:'⚠️ Предупреждение', error:'🔴 Ошибка'};
+
+  for(const agent of data.agents){
+    const icon = AGENT_ICONS[agent.name] || '🤖';
+    const cls = agent.status === 'ok' ? 'ok' : agent.status === 'warn' ? 'warn' : 'err';
+
+    // Build check badges
+    let checksHTML = '';
+    const checks = [
+      {key:'has_inventory', label:'📄 Инвентарь', ok:agent.has_inventory},
+      {key:'profile_exists', label:'👤 Профиль', ok:agent.profile?.profile_exists},
+      {key:'has_config', label:'⚙️ Конфиг', ok:agent.profile?.has_config},
+      {key:'has_env', label:'🔑 .env', ok:agent.profile?.has_env},
+      {key:'has_alias', label:'🔗 Ярлык', ok:agent.has_alias},
+    ];
+    for(const c of checks){
+      checksHTML += `<span class="check${c.ok?'':' fail'}">${c.ok?'✓':'✗'} ${c.label}</span>`;
+    }
+
+    // Issues
+    let issuesHTML = '';
+    if(agent.issues && agent.issues.length > 0){
+      issuesHTML = '<div class="issues">'+agent.issues.map(i=>'<span>⚠️ '+i+'</span>').join('')+'</div>';
+    }
+
+    grid.innerHTML += `
+      <div class="agent-card ${cls}">
+        <div class="top-row">
+          <span class="icon">${icon}</span>
+          <span class="name">${agent.name}</span>
+          <span class="status-dot"></span>
+        </div>
+        <div class="checks">${checksHTML}</div>
+        ${issuesHTML}
+      </div>`;
+  }
+}
+
+function refresh(){
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true;
+  btn.innerHTML = '⏳ ...';
+  loadData().finally(()=>{
+    btn.disabled = false;
+    btn.innerHTML = '🔄 Обновить';
+  });
+}
+
+// Auto-refresh every 60 seconds
+let autoRefreshTimer;
+function startAutoRefresh(){
+  autoRefreshTimer = setInterval(loadData, 60000);
+}
+
+loadData().then(startAutoRefresh);
+</script>
+</body>
+</html>
