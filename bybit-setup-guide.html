@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bybit Testnet Setup — Пошаговая инструкция</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0d1117; color: #c9d1d9; font-family: -apple-system, sans-serif; padding: 20px; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 32px; max-width: 680px; margin: 0 auto; }
+  h1 { color: #58a6ff; font-size: 24px; margin-bottom: 8px; }
+  .sub { color: #8b949e; font-size: 14px; margin-bottom: 28px; }
+  .step { background: #0d1117; border: 1px solid #21262d; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+  .step-num { color: #58a6ff; font-weight: 700; font-size: 14px; margin-bottom: 6px; }
+  .step-title { font-size: 18px; font-weight: 600; margin-bottom: 10px; }
+  .step-body { color: #8b949e; line-height: 1.6; font-size: 14px; }
+  .step-body code { background: #21262d; padding: 2px 6px; border-radius: 4px; font-size: 13px; color: #ffa657; }
+  .highlight { background: #1b3a2d; border: 1px solid #2ea043; border-radius: 8px; padding: 16px; margin-top: 24px; }
+  .highlight h3 { color: #2ea043; margin-bottom: 8px; }
+  .highlight ul { margin-left: 20px; color: #7ee787; line-height: 1.8; }
+  .ready { text-align: center; color: #58a6ff; font-size: 16px; margin-top: 24px; padding: 16px; border: 1px dashed #30363d; border-radius: 8px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🚀 Фаза 4: Подключение Bybit Testnet</h1>
+  <div class="sub">3 простых шага — и трейдер начнёт торговать виртуальными деньгами</div>
+
+  <div class="step">
+    <div class="step-num">ШАГ 1</div>
+    <div class="step-title">Регистрация на Testnet</div>
+    <div class="step-body">
+      Открой в браузере (без VPN):<br>
+      <code>https://testnet.bybit.com</code><br><br>
+      Зарегистрируйся: email + пароль.<br>
+      <strong>Это тестовая сеть — все деньги виртуальные.</strong><br>
+      Тебе автоматически начислят <strong>100,000 USDT</strong> для тестов.
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">ШАГ 2</div>
+    <div class="step-title">Создание API-ключей</div>
+    <div class="step-body">
+      После регистрации в Testnet:<br><br>
+      ① Наведи на иконку профиля (правый верхний угол) → <strong>API</strong><br>
+      ② Нажми <strong>«Create New Key»</strong> → выбери <strong>«System-generated API Key»</strong><br>
+      ③ Настройки:<br>
+      &nbsp;&nbsp;&nbsp;• API Transaction: <strong style="color:#f85149">ОТКЛЮЧИТЬ</strong><br>
+      &nbsp;&nbsp;&nbsp;• Trade (SPOT + Futures): <strong style="color:#2ea043">ВКЛЮЧИТЬ</strong><br>
+      &nbsp;&nbsp;&nbsp;• Read-Write: <strong style="color:#2ea043">ВКЛЮЧИТЬ</strong><br>
+      &nbsp;&nbsp;&nbsp;• IP-ограничения: <strong>оставь пустыми</strong> (никаких)<br>
+      ④ Сохрани (скопируй!) <strong>API Key</strong> и <strong>API Secret</strong><br>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">ШАГ 3</div>
+    <div class="step-title">Отправь ключи мне в чат</div>
+    <div class="step-body">
+      Просто напиши сюда:<br>
+      <code>API_KEY=твой_api_key</code><br>
+      <code>API_SECRET=твой_api_secret</code><br><br>
+      Я пропишу их в <code>.env</code>, активирую <code>trader.py</code> через cron,<br>
+      и система начнёт торговать на тестнете.
+    </div>
+  </div>
+
+  <div class="highlight">
+    <h3>✅ Что будет после настройки</h3>
+    <ul>
+      <li>signal_v5.py отправляет сигнал BUY/SELL</li>
+      <li>trader.py исполняет ордер на Testnet (виртуальные деньги)</li>
+      <li>Стоп-лосс и тейк-профит ставятся автоматически</li>
+      <li>Уведомление в Telegram: «✅ Сделка открыта»</li>
+      <li>Первые 100 сделок — ТОЛЬКО тестнет</li>
+    </ul>
+  </div>
+
+  <div class="ready">
+    Код <strong>trader.py</strong> готов и протестирован (dry run).<br>
+    Жду твои API-ключи для активации.
+  </div>
+</div>
+</body>
+</html>

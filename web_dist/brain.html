@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MOE — Второй мозг</title>
+<meta name="apple-mobile-web-app-title" content="MOE">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon-dark.svg" type="image/svg+xml" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="/icon-light.svg" type="image/svg+xml" media="(prefers-color-scheme: light)">
+<link rel="apple-touch-icon" href="/icon-light-180.png">
+<script src="https://cdn.jsdelivr.net/npm/p5@1.11.1/lib/p5.min.js"></script>
+<style>
+:root{--bg:#08081c;--accent:#7c5cfc;--green:#10b981;--tile:#0f0f2e;--border:rgba(124,92,252,0.15);--text:#e0e0f0;--muted:#8888aa}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+header{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--tile);border-bottom:1px solid var(--border);flex-shrink:0}
+.back-btn{width:32px;height:32px;border-radius:8px;background:rgba(124,92,252,0.08);border:1px solid var(--border);color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer;text-decoration:none;font-size:16px;transition:all .15s;flex-shrink:0}
+.back-btn:hover{background:rgba(124,92,252,0.15);border-color:var(--accent)}
+.page-title{font-size:14px;font-weight:600;white-space:nowrap}
+.tabs{display:flex;gap:2px;margin-left:auto;flex-shrink:0}
+.tab{padding:4px 12px;border-radius:6px;cursor:pointer;border:1px solid transparent;font-size:12px;color:var(--muted);background:transparent;transition:.15s;white-space:nowrap}
+.tab:hover{color:var(--text);border-color:var(--border)}
+.tab.active{color:var(--accent);border-color:var(--accent);background:rgba(124,92,252,0.08)}
+#stats{font-size:11px;color:var(--muted);padding:2px 10px;border:1px solid var(--border);border-radius:20px;white-space:nowrap;flex-shrink:0}
+#graph-container{position:relative;flex:1;overflow:hidden}
+#graph-container canvas{display:block}
+#legend{position:absolute;bottom:12px;left:12px;z-index:5;color:var(--muted);font-size:10px;background:rgba(15,15,46,0.9);padding:6px 10px;border-radius:8px;border:1px solid var(--border);line-height:1.6;pointer-events:none}
+#legend span{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}
+#tooltip{position:absolute;pointer-events:none;z-index:10;background:rgba(15,15,46,0.95);color:var(--text);padding:8px 14px;border-radius:10px;font-size:11px;border:1px solid var(--accent);display:none;max-width:280px;white-space:pre-line}
+#status-popup{position:absolute;z-index:20;background:var(--tile);border:1px solid var(--accent);border-radius:10px;padding:10px;display:none;min-width:160px;box-shadow:0 4px 20px rgba(0,0,0,0.5)}
+#status-popup .popup-title{font-size:12px;font-weight:600;margin-bottom:6px;color:var(--text)}
+#status-popup button{display:block;width:100%;padding:6px 10px;margin:2px 0;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--text);font-size:11px;cursor:pointer;text-align:left;transition:.15s}
+#status-popup button:hover{background:rgba(124,92,252,0.08);border-color:var(--accent)}
+#status-popup button .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+#timeline-container{padding:12px 16px;overflow-y:auto;flex:1;display:none}
+#timeline-search{width:100%;padding:8px 12px;margin-bottom:12px;background:var(--tile);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;outline:none}
+#timeline-search:focus{border-color:var(--accent)}
+#timeline-search::placeholder{color:var(--muted)}
+.timeline-item{display:flex;align-items:center;gap:10px;padding:10px 14px;margin-bottom:6px;background:var(--tile);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:.15s;flex-wrap:wrap}
+.timeline-item:hover{border-color:var(--accent)}
+.timeline-item .date{font-size:10px;color:var(--muted);min-width:70px}
+.timeline-item .title{font-size:13px;font-weight:600;flex:1;min-width:120px}
+.timeline-item .folder{font-size:10px;color:var(--muted);min-width:60px;text-align:right}
+.timeline-item .status-badge{padding:3px 10px;border-radius:12px;font-size:10px;font-weight:600;white-space:nowrap;cursor:pointer;transition:.15s}
+.timeline-item .status-badge:hover{opacity:.8}
+.status-идея{background:rgba(124,92,252,0.12);color:var(--accent)}
+.status-в{background:rgba(16,185,129,0.12);color:var(--green)}
+.status-готово{background:rgba(124,92,252,0.12);color:var(--accent)}
+.status-реализовано{background:rgba(240,192,64,0.15);color:#f0c040}
+.status-прочее{background:rgba(136,136,170,0.12);color:var(--muted)}
+.empty{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty span{font-size:40px;display:block;margin-bottom:10px}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:30;background:var(--green);color:#000;padding:8px 20px;border-radius:20px;font-size:13px;font-weight:600;display:none;transition:opacity .3s}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.timeline-item{animation:fadeIn .25s ease both}
+.timeline-item:nth-child(2){animation-delay:.05s}
+.timeline-item:nth-child(3){animation-delay:.10s}
+</style>
+</head>
+<body>
+
+<header>
+  <a class="back-btn" href="/" title="На главную">←</a>
+  <span class="page-title">🧠 Второй мозг</span>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('graph')">🔗 Граф</button>
+    <button class="tab" onclick="switchTab('timeline')">📋 Лента</button>
+  </div>
+  <div id="stats"></div>
+</header>
+
+<div id="graph-container">
+  <div id="tooltip"></div>
+  <div id="status-popup"></div>
+  <div id="legend">
+    <span style="background:#7c5cfc"></span> идея<br>
+    <span style="background:#10b981"></span> в работе<br>
+    <span style="background:#7c5cfc"></span> готово<br>
+    <span style="background:#f0c040"></span> реализовано<br>
+    <span style="background:#8888aa"></span> прочее
+  </div>
+</div>
+
+<div id="timeline-container">
+  <input type="search" id="timeline-search" placeholder="🔍 Поиск по названию, тегам, папке..." oninput="filterTimeline()">
+  <div id="timeline-list"></div>
+</div>
+<div id="toast"></div>
+
+<script>
+const STATUSES = ['идея','в работе','готово','реализовано'];
+const STATUS_COLORS = { 'идея':'#7c5cfc', 'в работе':'#10b981', 'готово':'#7c5cfc', 'реализовано':'#f0c040' };
+const STATUS_CSS = { 'идея':'status-идея', 'в работе':'status-в', 'готово':'status-готово', 'реализовано':'status-реализовано', 'progress':'status-в', 'done':'status-готово', 'implemented':'status-реализовано' };
+
+let brainData = null, p5graph = null, selectedNode = null;
+
+async function loadData() {
+  const resp = await fetch('/api/brain/graph?_=' + Date.now());
+  brainData = await resp.json();
+  document.getElementById('stats').textContent = `${brainData.nodes.length} зам. · ${brainData.edges.length} связей`;
+}
+
+function statusColor(s) {
+  return STATUS_COLORS[s] || (s.includes('работ')||s==='progress'?'#10b981':s==='done'?'#7c5cfc':s==='implemented'?'#f0c040':'#8888aa');
+}
+function isImpl(s) { return s==='реализовано'||s==='implemented'; }
+function cssClass(s) { return STATUS_CSS[s] || (s.includes('работ')||s==='progress'?'status-в':s==='done'?'status-готово':s==='implemented'?'status-реализовано':'status-прочее'); }
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelector(`.tab[onclick*="${name}"]`).classList.add('active');
+  document.getElementById('graph-container').style.display = name==='graph'?'block':'none';
+  document.getElementById('timeline-container').style.display = name==='timeline'?'block':'none';
+  document.getElementById('status-popup').style.display = 'none';
+  if(name==='graph') initGraph();
+  if(name==='timeline') renderTimeline();
+}
+
+function initGraph() {
+  if(!brainData) return;
+  const container = document.getElementById('graph-container');
+  if(p5graph) p5graph.remove();
+  p5graph = new p5((p) => {
+    const nodes=[], nodeById={};
+    const edges=[...brainData.edges];
+    let dragged=null,offX=0,offY=0;
+
+    p.setup = () => {
+      const c = p.createCanvas(container.clientWidth, container.clientHeight);
+      c.parent('graph-container');
+      brainData.nodes.forEach((d,i) => {
+        const angle = (p.TWO_PI/brainData.nodes.length)*i-p.HALF_PI;
+        const r = p.min(p.width,p.height)*0.28;
+        const n = {id:d.id,title:d.title,folder:d.folder,tags:d.tags,status:d.status,weight:d.weight,x:p.width/2+p.cos(angle)*r,y:p.height/2+p.sin(angle)*r,vx:0,vy:0,radius:14+d.weight*3};
+        nodes.push(n); nodeById[d.id]=n;
+      });
+    };
+
+    p.draw = () => {
+      p.background('#08081c');
+      simulate();
+      p.strokeWeight(1);
+      edges.forEach(e=>{const s=nodeById[e.source],t=nodeById[e.target];if(!s||!t)return;p.stroke(124,92,252,30);p.line(s.x,s.y,t.x,t.y)});
+      nodes.forEach(n=>{
+        const c=statusColor(n.status);
+        if(n.weight>1){p.noStroke();p.fill(p.red(c),p.green(c),p.blue(c),8);p.circle(n.x,n.y,n.radius*2.2)}
+        if(isImpl(n.status)){p.noFill();p.strokeWeight(1.5);p.stroke(p.red(c),p.green(c),p.blue(c),50);p.circle(n.x,n.y,n.radius+7);p.strokeWeight(0.8);p.stroke(p.red(c),p.green(c),p.blue(c),25);p.circle(n.x,n.y,n.radius+10)}
+        p.stroke(c);p.strokeWeight(1.5);p.fill('#08081c');p.circle(n.x,n.y,n.radius);
+        if(isImpl(n.status)){p.noStroke();p.fill(c);p.textAlign(p.CENTER,p.CENTER);p.textSize(n.radius*0.65);p.text('✓',n.x,n.y+1)}
+        p.noStroke();p.fill(isImpl(n.status)?c:'#e0e0f0');p.textAlign(p.CENTER,p.CENTER);p.textSize(9);
+        const lbl=n.title.length>14?n.title.slice(0,12)+'…':n.title;
+        p.text(lbl,n.x,n.y+n.radius+10);
+      });
+      updateTooltip();
+    };
+
+    function simulate(){
+      const cx=p.width/2,cy=p.height/2,rep=6000,att=0.01,damp=0.85,ctr=0.004;
+      nodes.forEach(n=>{n.vx+=(cx-n.x)*ctr;n.vy+=(cy-n.y)*ctr;nodes.forEach(o=>{if(n===o)return;let dx=n.x-o.x,dy=n.y-o.y,d=p.max(p.sqrt(dx*dx+dy*dy),1),f=rep/(d*d);n.vx+=(dx/d)*f;n.vy+=(dy/d)*f})});
+      edges.forEach(e=>{const s=nodeById[e.source],t=nodeById[e.target];if(!s||!t)return;let dx=t.x-s.x,dy=t.y-s.y,d=p.max(p.sqrt(dx*dx+dy*dy),1),f=(d-100)*att;let fx=(dx/d)*f,fy=(dy/d)*f;s.vx+=fx;s.vy+=fy;t.vx-=fx;t.vy-=fy});
+      nodes.forEach(n=>{if(n===dragged)return;n.vx*=damp;n.vy*=damp;n.x+=n.vx;n.y+=n.vy;n.x=p.constrain(n.x,n.radius,p.width-n.radius);n.y=p.constrain(n.y,n.radius,p.height-n.radius)});
+    }
+
+    function updateTooltip(){
+      const tip=document.getElementById('tooltip');let hovered=null;
+      nodes.forEach(n=>{if(p.dist(p.mouseX,p.mouseY,n.x,n.y)<n.radius)hovered=n});
+      if(hovered){tip.style.display='block';tip.style.left=(p.mouseX+14)+'px';tip.style.top=(p.mouseY+14)+'px';tip.innerHTML=`<b>${hovered.title}</b>\n📁 ${hovered.folder||'—'}\n📌 ${hovered.status||'без статуса'}\n🏷 ${hovered.tags.join(', ')||'—'}\n📊 связей: ${hovered.weight}`}
+      else tip.style.display='none';
+    }
+
+    p.mousePressed = () => {
+      nodes.forEach(n=>{if(p.dist(p.mouseX,p.mouseY,n.x,n.y)<n.radius){dragged=n;offX=n.x-p.mouseX;offY=n.y-p.mouseY}});
+      if(!dragged) { document.getElementById('status-popup').style.display='none'; selectedNode=null; return; }
+      selectedNode = dragged;
+      showStatusPopup(p.mouseX, p.mouseY, dragged);
+      dragged=null;
+      return false;
+    };
+    p.mouseDragged = () => { if(dragged){dragged.x=p.mouseX+offX;dragged.y=p.mouseY+offY} };
+    p.mouseReleased = () => { dragged=null };
+    p.windowResized = () => { p.resizeCanvas(container.clientWidth,container.clientHeight) };
+  });
+}
+
+function showStatusPopup(x, y, node) {
+  const popup = document.getElementById('status-popup');
+  popup.innerHTML = `<div class="popup-title">${node.title}</div>` +
+    STATUSES.map(s => `<button onclick="changeStatus('${node.id}','${s}')"><span class="dot" style="background:${STATUS_COLORS[s]}"></span>${s}</button>`).join('');
+  popup.style.display = 'block';
+  const cx = Math.min(x, window.innerWidth - 180);
+  const cy = Math.min(y, window.innerHeight - 200);
+  popup.style.left = cx + 'px';
+  popup.style.top = cy + 'px';
+}
+
+async function changeStatus(nodeId, newStatus) {
+  const resp = await fetch('/api/brain/status', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({id:nodeId, status:newStatus})
+  });
+  const result = await resp.json();
+  document.getElementById('status-popup').style.display = 'none';
+  selectedNode = null;
+  if(result.ok) {
+    toast(`✅ ${newStatus}`);
+    await loadData();
+    initGraph();
+    if(document.getElementById('timeline-container').style.display !== 'none') renderTimeline();
+  } else {
+    toast(`❌ Ошибка: ${result.error}`);
+  }
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block'; t.style.opacity = 1;
+  setTimeout(() => { t.style.opacity = 0; setTimeout(() => t.style.display='none', 300) }, 1500);
+}
+
+function renderTimeline() {
+  if(!brainData) return;
+  const sorted = [...brainData.nodes].filter(n => n.date).sort((a,b) => b.date.localeCompare(a.date));
+  const undated = [...brainData.nodes].filter(n => !n.date);
+  const all = [...sorted, ...undated];
+  window._allNodes = all;
+  filterTimeline();
+}
+
+function filterTimeline() {
+  const q = (document.getElementById('timeline-search')?.value || '').toLowerCase();
+  const all = window._allNodes || [];
+  const filtered = q ? all.filter(n =>
+    (n.title||'').toLowerCase().includes(q) ||
+    (n.tags||[]).some(t => t.toLowerCase().includes(q)) ||
+    (n.folder||'').toLowerCase().includes(q) ||
+    (n.id||'').toLowerCase().includes(q)
+  ) : all;
+
+  const list = document.getElementById('timeline-list');
+  if(!filtered.length) {
+    list.innerHTML = '<div class="empty"><span>🔍</span>Ничего не найдено</div>';
+    return;
+  }
+  list.innerHTML = filtered.map(n => `
+    <div class="timeline-item">
+      <span class="date">${n.date || '—'}</span>
+      <span class="title">${escHtml(n.title)}</span>
+      <span class="folder">📁 ${n.folder||'—'}</span>
+      <span class="status-badge ${cssClass(n.status||'')}" onclick="event.stopPropagation();showTimelinePopup(event,'${n.id.replace(/'/g,"\\'")}','${escHtml(n.title).replace(/'/g,"\\'")}')" title="Сменить статус">${n.status||'прочее'}</span>
+    </div>
+  `).join('');
+}
+
+function showTimelinePopup(e, nodeId, title) {
+  const popup = document.getElementById('status-popup');
+  popup.innerHTML = `<div class="popup-title">${title}</div>` +
+    STATUSES.map(s => `<button onclick="changeStatus('${nodeId}','${s}')"><span class="dot" style="background:${STATUS_COLORS[s]}"></span>${s}</button>`).join('');
+  popup.style.display = 'block';
+  popup.style.left = Math.min(e.clientX, window.innerWidth - 180) + 'px';
+  popup.style.top = Math.min(e.clientY, window.innerHeight - 200) + 'px';
+  setTimeout(() => {
+    const closePopup = (ev) => {
+      if (!popup.contains(ev.target)) {
+        popup.style.display = 'none';
+        document.removeEventListener('click', closePopup);
+      }
+    };
+    document.addEventListener('click', closePopup);
+  }, 10);
+}
+
+function escHtml(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+loadData().then(() => initGraph());
+</script>
+</body>
+</html>

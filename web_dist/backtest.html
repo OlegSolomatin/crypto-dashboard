@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MOE — Бэктесты</title>
+<meta name="theme-color" content="#08081c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MOE">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/svg+xml" href="/icon-dark.svg">
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-dark-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/icon-dark.png">
+<link rel="apple-touch-icon" href="/icon-dark-180.png" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/icon-light-180.png" media="(prefers-color-scheme: light)">
+<style>
+:root{
+  --bg:#08081c;--accent:#7c5cfc;--green:#10b981;--red:#ef4444;
+  --panel:#0f0f2e;--border:rgba(124,92,252,0.12);--text:#e0e0f0;
+  --muted:#8888aa;--hover:#14143a;--input:#13132d;--radius:16px;
+  --glow:0 0 24px rgba(124,92,252,0.12);
+}
+/* ═══ LIGHT THEME ═══ */
+[data-theme="light"]{
+  --bg:#f4f4f9;--panel:#ffffff;--border:rgba(124,92,252,0.15);
+  --text:#1a1a2e;--muted:#6b7280;--hover:#f0f0f5;--input:#f0f0f5;
+  --glow:0 0 24px rgba(124,92,252,0.08);
+}
+[data-theme="light"] .tooltip-overlay{background:rgba(0,0,0,0.3)}
+[data-theme="light"] .tooltip-box{box-shadow:0 16px 48px rgba(0,0,0,0.15)}
+/* ═══ THEME TOGGLE (iOS-style) ═══ */
+.theme-toggle-wrap{margin-left:auto;flex-shrink:0;display:flex;align-items:center}
+.theme-toggle{position:relative;display:flex;background:var(--input);border-radius:20px;padding:2px;gap:0;border:1px solid var(--border)}
+.theme-option{width:34px;height:26px;border:none;background:transparent;font-size:13px;cursor:pointer;border-radius:17px;display:flex;align-items:center;justify-content:center;transition:all .15s;position:relative;z-index:1;padding:0;line-height:1;-webkit-tap-highlight-color:transparent;outline:none}
+.theme-option:hover{opacity:0.8}
+.theme-option.active{color:#fff}
+.theme-slider{position:absolute;width:34px;height:26px;background:var(--accent);border-radius:17px;top:2px;left:2px;transition:left .3s cubic-bezier(0.4,0,0.2,1);z-index:0;box-shadow:0 1px 4px rgba(0,0,0,0.15)}
+@media(max-width:768px){
+  .theme-toggle-wrap{margin-left:0}
+  .header{gap:8px;padding:0 10px}
+  .header .back{padding:5px 10px;font-size:12px}
+  .header .title{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',sans-serif;min-height:100dvh;display:flex;flex-direction:column}
+
+/* ═══ HEADER ═══ */
+.header{
+  display:flex;align-items:center;gap:12px;padding:0 16px;height:48px;
+  background:var(--panel);border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:100
+}
+.header .back{
+  background:var(--input);border:1px solid var(--border);color:var(--muted);
+  padding:6px 14px;border-radius:8px;font-size:13px;cursor:pointer;
+  text-decoration:none;transition:all .2s
+}
+.header .back:hover{color:var(--text);border-color:var(--accent)}
+.header .title{font-weight:700;font-size:16px;color:var(--accent)}
+
+/* ═══ CONTAINER ═══ */
+.container{max-width:600px;margin:0 auto;padding:16px;width:100%;flex:1;display:flex;flex-direction:column}
+
+/* ═══ START SCREEN ═══ */
+/* Block 1: New Strategy button */
+.new-strat-wrap{display:flex;justify-content:flex-start;margin-bottom:24px}
+.new-strat-btn{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  width:25%;min-width:180px;
+  padding:18px 24px;
+  background:var(--accent);color:#fff;
+  border:none;border-radius:var(--radius);
+  font-size:15px;font-weight:600;cursor:pointer;
+  transition:all .2s;text-decoration:none
+}
+.new-strat-btn:hover{opacity:0.9;box-shadow:var(--glow)}
+.new-strat-btn .plus{font-size:22px;font-weight:300;line-height:1}
+
+/* Block 2: Tabs + content */
+.tab-bar{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:16px}
+.tab-btn{
+  padding:10px 20px;font-size:14px;font-weight:500;
+  color:var(--muted);background:none;border:none;border-bottom:2px solid transparent;
+  cursor:pointer;transition:all .15s;margin-bottom:-2px
+}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-btn .count{font-size:10px;background:var(--input);padding:2px 6px;border-radius:10px;margin-left:4px}
+.tab-content{display:none;animation:fadeIn .3s ease}
+.tab-content.active{display:block}
+.placeholder{text-align:center;padding:32px 0;color:var(--muted);font-size:13px}
+
+/* ═══ PROGRESS BAR ═══ */
+.progress-wrap{margin-bottom:28px}
+.progress-steps{display:flex;justify-content:space-between;position:relative;margin-bottom:10px}
+.progress-steps::before{
+  content:'';position:absolute;top:14px;left:0;right:0;height:2px;
+  background:var(--border);z-index:0
+}
+.progress-fill{
+  position:absolute;top:14px;left:0;height:2px;
+  background:var(--accent);z-index:1;transition:width .4s ease
+}
+.step-dot{
+  width:30px;height:30px;border-radius:50%;background:var(--input);
+  border:2px solid var(--border);display:flex;align-items:center;
+  justify-content:center;font-size:12px;font-weight:700;z-index:2;
+  color:var(--muted);transition:all .3s
+}
+.step-dot.done{background:var(--accent);border-color:var(--accent);color:#fff}
+.step-dot.active{border-color:var(--accent);color:var(--accent);box-shadow:0 0 12px rgba(124,92,252,0.3)}
+.step-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--muted)}
+.step-labels span{text-align:center;width:30px}
+
+/* ═══ STEP PANELS ═══ */
+.step{display:none;animation:fadeIn .3s ease;padding-bottom:80px}
+.step.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.step h2{font-size:18px;margin-bottom:6px}
+.step .sub{color:var(--muted);font-size:13px;margin-bottom:18px}
+
+/* ═══ CARDS ═══ */
+.cards{display:flex;flex-direction:column;gap:12px}
+.card{
+  background:var(--panel);border:2px solid var(--border);
+  border-radius:var(--radius);padding:16px 18px;cursor:pointer;
+  transition:all .2s;display:flex;align-items:center;gap:14px
+}
+.card:hover{border-color:var(--accent);box-shadow:var(--glow)}
+.card.selected{border-color:var(--accent);background:rgba(124,92,252,0.08);box-shadow:var(--glow)}
+.card .icon{font-size:28px;flex-shrink:0}
+.card .info{flex:1;min-width:0}
+.card .info .name{font-weight:600;font-size:15px}
+.card .info .desc{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.4}
+.card .check{
+  width:24px;height:24px;border-radius:50%;border:2px solid var(--border);
+  flex-shrink:0;transition:all .2s;display:flex;align-items:center;justify-content:center
+}
+.card.selected .check{background:var(--accent);border-color:var(--accent)}
+.card.selected .check::after{content:'✓';color:#fff;font-size:14px;font-weight:700}
+.card .help-icon{
+  position:absolute;top:10px;right:10px;
+  width:22px;height:22px;border-radius:50%;
+  background:var(--input);border:1px solid var(--border);
+  color:var(--muted);font-size:12px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:all .2s;z-index:5
+}
+.card .help-icon:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+.card{position:relative}
+
+.tooltip-overlay{
+  display:none;position:fixed;top:0;left:0;right:0;bottom:0;
+  background:rgba(0,0,0,0.6);z-index:999;align-items:center;justify-content:center
+}
+.tooltip-overlay.show{display:flex}
+.tooltip-box{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:var(--radius);padding:22px;max-width:380px;width:90%;
+  box-shadow:0 16px 48px rgba(0,0,0,0.5);animation:fadeIn .2s ease
+}
+.tooltip-box h3{font-size:16px;margin-bottom:4px;color:var(--accent);display:flex;align-items:center;gap:8px}
+.tooltip-box .desc{font-size:13px;color:var(--text);line-height:1.6;margin:12px 0}
+.tooltip-box .params-title{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:16px;margin-bottom:8px}
+.tooltip-box .param-row{display:flex;justify-content:space-between;padding:5px 0;font-size:13px;border-bottom:1px solid var(--border)}
+.tooltip-box .param-row:last-child{border-bottom:none}
+.tooltip-box .param-row .p-label{color:var(--muted)}
+.tooltip-box .param-row .p-val{font-weight:600;color:var(--text)}
+.tooltip-box .reco{font-size:12px;color:var(--muted);margin-top:14px;padding:10px;background:rgba(124,92,252,0.06);border-radius:8px;line-height:1.5}
+.tooltip-box .close-btn{
+  display:block;width:100%;margin-top:16px;padding:10px;
+  background:var(--accent);color:#fff;border:none;
+  border-radius:10px;font-size:14px;font-weight:600;cursor:pointer
+}
+.tooltip-box .close-btn:hover{opacity:0.9}
+
+/* ═══ TIMEFRAME GRID ═══ */
+.tf-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.tf-btn{
+  background:var(--panel);border:2px solid var(--border);
+  border-radius:var(--radius);padding:14px 8px;text-align:center;
+  cursor:pointer;transition:all .2s;font-size:14px;font-weight:600
+}
+.tf-btn:hover{border-color:var(--accent)}
+.tf-btn.selected{border-color:var(--accent);background:rgba(124,92,252,0.1);color:var(--accent)}
+.tf-btn .tf-min{font-size:10px;color:var(--muted);margin-top:2px}
+
+/* ═══ LEVERAGE BUTTONS ═══ */
+.lev-row{display:flex;gap:10px;flex-wrap:wrap}
+.lev-btn{
+  flex:1;min-width:55px;background:var(--panel);border:2px solid var(--border);
+  border-radius:var(--radius);padding:12px;text-align:center;
+  cursor:pointer;transition:all .2s;font-size:18px;font-weight:700
+}
+.lev-btn:hover{border-color:var(--accent)}
+.lev-btn.selected{border-color:var(--accent);background:rgba(124,92,252,0.1);color:var(--accent)}
+.lev-warn{font-size:12px;color:var(--red);margin-top:10px;display:none}
+.lev-warn.show{display:block}
+
+/* ═══ SLIDER ═══ */
+.slider-group{margin-bottom:20px}
+.slider-label{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:6px}
+.slider-value{font-size:28px;font-weight:700;color:var(--accent);text-align:center;margin:10px 0}
+input[type=range]{
+  -webkit-appearance:none;width:100%;height:6px;
+  background:var(--input);border-radius:3px;outline:none
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:24px;height:24px;border-radius:50%;
+  background:var(--accent);cursor:pointer;border:2px solid var(--bg)
+}
+.presets{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.preset{
+  background:var(--input);border:1px solid var(--border);
+  border-radius:8px;padding:6px 12px;font-size:12px;
+  cursor:pointer;color:var(--muted);transition:all .2s
+}
+.preset:hover{color:var(--text);border-color:var(--accent)}
+.preset.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* ═══ SUMMARY ═══ */
+.summary{background:var(--panel);border-radius:var(--radius);padding:18px;margin-bottom:20px}
+.summary h3{font-size:14px;color:var(--muted);margin-bottom:12px}
+.summary .row{display:flex;justify-content:space-between;padding:6px 0;font-size:14px;border-bottom:1px solid var(--border)}
+.summary .row:last-child{border-bottom:none}
+.summary .row .label{color:var(--muted)}
+.summary .row .val{font-weight:600}
+
+/* ═══ BUTTONS ═══ */
+.btn-row{display:flex;gap:12px;margin-top:20px}
+/* Sticky nav at bottom */
+#navRow{
+  position:sticky;bottom:0;z-index:50;
+  background:var(--bg);padding:12px 16px;
+  padding-bottom:calc(12px + env(safe-area-inset-bottom, 20px));
+  margin:20px -16px 0 -16px;
+  border-top:1px solid var(--border);
+  box-shadow:0 -4px 16px rgba(0,0,0,0.08);
+}
+.btn{
+  padding:14px 24px;border-radius:12px;font-size:15px;font-weight:600;
+  cursor:pointer;border:none;transition:all .2s;text-align:center
+}
+.btn-back{background:var(--input);color:var(--muted);flex:1}
+.btn-back:hover{color:var(--text)}
+.btn-next{background:var(--accent);color:#fff;flex:2}
+.btn-next:hover{opacity:0.9;box-shadow:var(--glow)}
+.btn-start{
+  background:var(--green);color:#fff;flex:2;font-size:17px;
+  padding:16px 28px
+}
+.btn-start:hover{opacity:0.9;box-shadow:0 0 20px rgba(16,185,129,0.3)}
+.btn-start:disabled{opacity:0.4;cursor:not-allowed;box-shadow:none}
+
+/* ═══ RESULTS ═══ */
+.results{display:none;animation:fadeIn .5s ease}
+.results.show{display:block}
+.result-card{
+  background:var(--panel);border-radius:var(--radius);padding:18px;margin-bottom:14px;
+  border:1px solid var(--border)
+}
+.result-card h4{font-size:13px;color:var(--muted);margin-bottom:6px}
+.result-card .big{font-size:32px;font-weight:700}
+.result-card .big.green{color:var(--green)}
+.result-card .big.red{color:var(--red)}
+.metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:16px}
+.metric{padding:14px;background:rgba(124,92,252,0.04);border-radius:10px}
+.metric .m-label{font-size:11px;color:var(--muted)}
+.metric .m-val{font-size:16px;font-weight:600;margin-top:4px}
+
+/* ═══ SPINNER ═══ */
+.spinner-wrap{text-align:center;padding:40px 0}
+.spinner{
+  width:48px;height:48px;border:4px solid var(--border);
+  border-top-color:var(--accent);border-radius:50%;
+  animation:spin .8s linear infinite;margin:0 auto 14px
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner-wrap p{color:var(--muted);font-size:14px}
+
+/* ═══ CANCEL BUTTON ═══ */
+.cancel-btn{
+  padding:6px 14px;background:transparent;border:1px solid var(--red);
+  color:var(--red);border-radius:8px;font-size:11px;cursor:pointer;
+  transition:all .2s;margin-top:8px
+}
+.cancel-btn:hover{background:var(--red);color:#fff}
+
+/* ═══ MOBILE ═══ */
+@media(max-width:768px){
+  .new-strat-btn{width:100%}
+}
+@media(max-width:400px){
+  .tf-grid{grid-template-columns:repeat(3,1fr)}
+  .lev-btn{font-size:16px;padding:10px}
+}
+</style>
+<script src="theme.js"></script>
+</head>
+<body>
+
+<div class="header">
+  <a href="/dashboard" class="back">← Дашборд</a>
+  <span class="title" id="headerTitle">🧪 Бэктест стратегий</span>
+  <div class="theme-toggle-wrap"></div>
+</div>
+
+<div class="container">
+
+  <!-- ═══════════ START SCREEN ═══════════ -->
+  <div id="startScreen">
+    <!-- Block 1: New Strategy -->
+    <div class="new-strat-wrap">
+      <button class="new-strat-btn" onclick="openWizard()">
+        <span class="plus">+</span> Новая стратегия
+      </button>
+    </div>
+
+    <!-- Block 2: Tabs -->
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchListTab('running')">
+        🔄 Текущие <span class="count" id="runningCount">0</span>
+      </button>
+      <button class="tab-btn" onclick="switchListTab('history')">
+        📚 История <span class="count" id="historyCount">0</span>
+      </button>
+    </div>
+
+    <div class="tab-content active" id="tab-running">
+      <div class="placeholder" id="runningPlaceholder">Нет запущенных бэктестов</div>
+      <div id="runningList"></div>
+    </div>
+
+    <div class="tab-content" id="tab-history">
+      <div class="placeholder" id="historyPlaceholder">Загрузка истории...</div>
+      <div id="historyList"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════ WIZARD ═══════════ -->
+  <div id="wizardWrap" style="display:none">
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-steps">
+        <div class="progress-fill" id="progressFill" style="width:0%"></div>
+        <div class="step-dot" data-step="1">1</div>
+        <div class="step-dot" data-step="2">2</div>
+        <div class="step-dot" data-step="3">3</div>
+        <div class="step-dot" data-step="4">4</div>
+        <div class="step-dot" data-step="5">5</div>
+        <div class="step-dot" data-step="6">6</div>
+        <div class="step-dot" data-step="7">7</div>
+        <div class="step-dot" data-step="8">8</div>
+      </div>
+    </div>
+
+    <div class="step active" id="step1">
+      <h2>🔄 Режим тестирования</h2>
+      <p class="sub">На каких данных прогоняем стратегию</p>
+      <div class="cards">
+        <div class="card" data-mode="history" onclick="selectCard(this,'mode')">
+          <span class="help-icon" onclick="event.stopPropagation();showTooltip('mode_history')">?</span>
+          <span class="icon">📜</span>
+          <div class="info">
+            <div class="name">Исторические данные</div>
+            <div class="desc">Бэктест на прошлых свечах Binance. Мгновенный прогон за выбранный период. Результат сразу.</div>
+          </div>
+          <div class="check"></div>
+        </div>
+        <div class="card" data-mode="live" onclick="selectCard(this,'mode')">
+          <span class="help-icon" onclick="event.stopPropagation();showTooltip('mode_live')">?</span>
+          <span class="icon">🔴</span>
+          <div class="info">
+            <div class="name">Реальные данные (Live)</div>
+            <div class="desc">Запуск стратегии на N дней вперёд на реальном рынке. Сделки открываются по сигналам в реальном времени.</div>
+          </div>
+          <div class="check"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step" id="step2">
+      <h2>📊 Выбери стратегию</h2>
+      <p class="sub">От стратегии зависят правила входа/выхода, SL и TP</p>
+      <div class="cards">
+        <div class="card" data-strategy="rsi" onclick="selectCard(this,'strategy')">
+          <span class="help-icon" onclick="event.stopPropagation();showTooltip('rsi')">?</span>
+          <span class="icon">📈</span>
+          <div class="info">
+            <div class="name">RSI-стратегия (signal_v6)</div>
+            <div class="desc">Быстрые сделки: RSI↔MACD+стакан+ончейн. SL=1.2% TP=2.4% Cooldown=15мин. Для активного трейдинга.</div>
+          </div>
+          <div class="check"></div>
+        </div>
+        <div class="card" data-strategy="swing" onclick="selectCard(this,'strategy')">
+          <span class="help-icon" onclick="event.stopPropagation();showTooltip('swing')">?</span>
+          <span class="icon">🐢</span>
+          <div class="info">
+            <div class="name">SWING-стратегия</div>
+            <div class="desc">Долгосрочные сделки: RSI↔ADX+тренд+TV. SL=2.5% TP=5% Cooldown=60мин. Трейлинг-стоп. Для терпеливых.</div>
+          </div>
+          <div class="check"></div>
+        </div>
+        <div class="card" data-strategy="rsi_trailing" onclick="selectCard(this,'strategy')">
+          <span class="help-icon" onclick="event.stopPropagation();showTooltip('rsi_trailing')">?</span>
+          <span class="icon">🎯</span>
+          <div class="info">
+            <div class="name">RSI Трейлинг-стоп</div>
+            <div class="desc">Без тейк-профита. SL=1.2% скользит за ценой после +0.5%. Выход только по стопу. Для трендовых движений.</div>
+          </div>
+          <div class="check"></div>
+        </div>
+
+        <div class="card" data-strategy="hammer" onclick="selectCard(this,'strategy')">
+          <span class="help-icon" onclick="event.stopPropagation();showTooltip('hammer')">?</span>
+          <span class="icon">🔨</span>
+          <div class="info">
+            <div class="name">Hammer (Молот)</div>
+            <div class="desc">Свечной паттерн разворота. Молот после падения → BUY. RR 1:2, SL под минимумом, тайм-аут 20 свечей.</div>
+          </div>
+          <div class="check"></div>
+        </div>
+
+        <div class="card" data-strategy="bullish_engulfing" onclick="selectCard(this,'strategy')">
+          <span class="help-icon" onclick="event.stopPropagation();showTooltip('bullish_engulfing')">?</span>
+          <span class="icon">🐂</span>
+          <div class="info">
+            <div class="name">Бычье поглощение</div>
+            <div class="desc">Красная → зелёная перекрывает тело предыдущей. Разворот вверх. RR 1:2, SL под минимумом, 30 свечей.</div>
+          </div>
+          <div class="check"></div>
+        </div>
+
+        <div class="card" data-strategy="morning_star" onclick="selectCard(this,'strategy')">
+          <span class="help-icon" onclick="event.stopPropagation();showTooltip('morning_star')">?</span>
+          <span class="icon">⭐</span>
+          <div class="info">
+            <div class="name">Утренняя звезда</div>
+            <div class="desc">3 свечи: красная → доджи → зелёная. Классический разворот. RR 1:2, SL под минимумом трёх свечей.</div>
+          </div>
+          <div class="check"></div>
+        </div>
+
+        <div class="card" data-strategy="piercing_line" onclick="selectCard(this,'strategy')">
+          <span class="help-icon" onclick="event.stopPropagation();showTooltip('piercing_line')">?</span>
+          <span class="icon">🔪</span>
+          <div class="info">
+            <div class="name">Пронизывающая линия</div>
+            <div class="desc">Открытие ниже минимума → закрытие выше середины. Сильный разворот. RR 1:2, тайм-аут 30 свечей.</div>
+          </div>
+          <div class="check"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step" id="step3">
+      <h2>💱 Выбери торговую пару</h2>
+      <p class="sub">Доступны пары с Binance Spot</p>
+      <div class="cards" id="pairCards"></div>
+    </div>
+
+    <div class="step" id="step4">
+      <h2>⏱️ Таймфрейм</h2>
+      <p class="sub">На каких свечах ищем сигналы</p>
+      <div class="tf-grid" id="tfGrid"></div>
+    </div>
+
+    <div class="step" id="step5">
+      <h2>⚡ Кредитное плечо</h2>
+      <p class="sub">Во сколько раз увеличиваем позицию</p>
+      <div class="lev-row" id="levRow"></div>
+      <div class="lev-warn" id="levWarn">⚠️ Высокое плечо — высокий риск ликвидации</div>
+    </div>
+
+    <div class="step" id="step6">
+      <h2>💰 Баланс</h2>
+      <p class="sub">Стартовый депозит для тестирования</p>
+      <div class="slider-group">
+        <div class="slider-label"><span>$100</span><span>$100,000</span></div>
+        <input type="range" id="balanceSlider" min="100" max="100000" step="100" value="1000" oninput="updateBalance(this.value)">
+        <div class="slider-value" id="balanceValue">$1,000</div>
+      </div>
+      <div class="presets">
+        <span class="preset" onclick="setBalance(100)">$100</span>
+        <span class="preset active" onclick="setBalance(1000)">$1,000</span>
+        <span class="preset" onclick="setBalance(5000)">$5,000</span>
+        <span class="preset" onclick="setBalance(10000)">$10,000</span>
+        <span class="preset" onclick="setBalance(50000)">$50,000</span>
+        <span class="preset" onclick="setBalance(100000)">$100,000</span>
+      </div>
+    </div>
+
+    <div class="step" id="step7">
+      <h2>💵 Сумма сделки</h2>
+      <p class="sub">Размер позиции в USDT. <b id="posMaxInfo">Максимум: $—</b> (баланс ÷ плечо)</p>
+      <div class="slider-group">
+        <div class="slider-label"><span>$1</span><span id="posMaxLabel">$—</span></div>
+        <input type="range" id="positionSlider" min="1" max="100" step="1" value="50" oninput="updatePosition(this.value)">
+        <div class="slider-value" id="positionValue">$50</div>
+      </div>
+      <div class="presets" id="posPresets"></div>
+      <p style="font-size:11px;color:var(--muted);margin-top:8px">⚠️ Сумма не может превышать баланс ÷ плечо — иначе позиция закроется при первом движении</p>
+    </div>
+
+    <div class="step" id="step8">
+      <h2>📅 Период тестирования</h2>
+      <p class="sub" id="periodSub">На каком историческом отрезке прогоняем стратегию</p>
+      <div class="slider-group">
+        <div class="slider-label"><span>1 день</span><span>30 дней</span></div>
+        <input type="range" id="periodSlider" min="1" max="30" step="1" value="7" oninput="updatePeriod(this.value)">
+        <div class="slider-value" id="periodValue">7 дней</div>
+      </div>
+      <div class="presets">
+        <span class="preset" onclick="setPeriod(1)">1 день</span>
+        <span class="preset" onclick="setPeriod(3)">3 дня</span>
+        <span class="preset active" onclick="setPeriod(7)">7 дней</span>
+        <span class="preset" onclick="setPeriod(14)">14 дней</span>
+        <span class="preset" onclick="setPeriod(21)">21 день</span>
+        <span class="preset" onclick="setPeriod(30)">30 дней</span>
+      </div>
+    </div>
+
+    <div class="step" id="step9">
+      <h2>✅ Подтверждение</h2>
+      <p class="s">Проверь настройки и запускай</p>
+      <div class="summary" id="summaryBox"></div>
+      <div class="btn-row">
+        <button class="btn btn-back" onclick="goToStep(8)">← Назад</button>
+        <button class="btn btn-start" id="startBtn" onclick="startBacktest()">🚀 Запустить бэктест</button>
+      </div>
+    </div>
+
+    <div class="btn-row" id="navRow">
+      <button class="btn btn-back" id="backBtn" onclick="prevStep()" style="display:none">← Назад</button>
+      <button class="btn btn-next" id="nextBtn" onclick="nextStep()">Далее →</button>
+    </div>
+  </div>
+
+  <!-- ═══════════ RESULTS ═══════════ -->
+  <div class="results" id="resultsWrap">
+    <div id="resultsContent"></div>
+  </div>
+
+  <div class="tooltip-overlay" id="tooltipOverlay" onclick="closeTooltip(event)">
+    <div class="tooltip-box" id="tooltipBox" onclick="event.stopPropagation()"></div>
+  </div>
+
+</div>
+
+<script>
+const PAIRS = [
+  {id:'TONUSDT',name:'TON',quote:'USDT',icon:'💎',vol:'$120M'},
+  {id:'BTCUSDT',name:'BTC',quote:'USDT',icon:'₿',vol:'$28B'},
+  {id:'ETHUSDT',name:'ETH',quote:'USDT',icon:'Ξ',vol:'$14B'},
+  {id:'SOLUSDT',name:'SOL',quote:'USDT',icon:'◎',vol:'$3.2B'},
+  {id:'DOGEUSDT',name:'DOGE',quote:'USDT',icon:'🐕',vol:'$1.1B'},
+  {id:'NOTUSDT',name:'NOT',quote:'USDT',icon:'📱',vol:'$80M'},
+  {id:'XRPUSDT',name:'XRP',quote:'USDT',icon:'💧',vol:'$2.5B'},
+  {id:'SUIUSDT',name:'SUI',quote:'USDT',icon:'🌊',vol:'$600M'},
+];
+const TIMEFRAMES = [
+  {id:'1m',label:'1 мин',desc:'скальпинг'},{id:'5m',label:'5 мин',desc:'быстрый'},
+  {id:'15m',label:'15 мин',desc:'интрадей'},{id:'30m',label:'30 мин',desc:'средний'},
+  {id:'1h',label:'1 час',desc:'свинг'},{id:'4h',label:'4 часа',desc:'долгий'},
+  {id:'1d',label:'1 день',desc:'позиционный'},
+];
+const LEVERAGES = [1,2,3,5,10];
+
+let state = {mode:null,strategy:null,pair:null,timeframe:null,leverage:null,balance:1000,positionSize:50,period:7,speed:'fast',currentStep:1};
+let backtestJobs = [];
+let historyPollTimer = null;
+let runningPollTimer = null;
+
+// ═══════════ SCREEN SWITCHING ═══════════
+function showScreen(screen) {
+  document.getElementById('startScreen').style.display = screen === 'start' ? '' : 'none';
+  document.getElementById('wizardWrap').style.display = screen === 'wizard' ? 'flex' : 'none';
+  document.getElementById('wizardWrap').style.flexDirection = screen === 'wizard' ? 'column' : '';
+  document.getElementById('resultsWrap').classList.toggle('show', screen === 'results');
+  document.getElementById('headerTitle').textContent = 
+    screen === 'start' ? '🧪 Бэктест стратегий' : 
+    screen === 'wizard' ? '🧪 Новый бэктест' : '🧪 Результаты';
+}
+
+function openWizard() {
+  state.currentStep = 1;
+  showScreen('wizard');
+  updateStepUI();
+}
+
+function backToStart() {
+  showScreen('start');
+  loadRunningJobs();
+  loadHistory();
+}
+
+// ═══════════ START SCREEN: TABS ═══════════
+let currentListTab = 'running';
+
+function switchListTab(tab) {
+  currentListTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.textContent.includes(tab === 'running' ? 'Текущие' : 'История')));
+  document.getElementById('tab-running').classList.toggle('active', tab === 'running');
+  document.getElementById('tab-history').classList.toggle('active', tab === 'history');
+  if (tab === 'running') loadRunningJobs();
+  if (tab === 'history') loadHistory();
+}
+
+// ═══════════ RUNNING JOBS ═══════════
+async function loadRunningJobs() {
+  try {
+    const resp = await fetch('/api/backtest/active');
+    const data = await resp.json();
+    const jobs = data.jobs || [];
+    
+    // Merge with existing backtestJobs (keep poll timers for running, keep completed with _completedAt)
+    jobs.forEach(j => {
+      const existing = backtestJobs.find(bj => bj.id === j.id);
+      if (!existing) {
+        const job = {id:j.id, status:j.status, params:j.params, pollTimer:null, data:j};
+        backtestJobs.push(job);
+        job.pollTimer = setInterval(() => pollJob(job), 3000);
+      } else if (existing.status !== 'running' && j.status === 'running') {
+        // Server says running but we thought it was done — update
+        existing.status = 'running';
+        existing._completedAt = null;
+      }
+    });
+    
+    renderRunningList();
+  } catch(e) { /* retry */ }
+  if (runningPollTimer) clearTimeout(runningPollTimer);
+  runningPollTimer = setTimeout(loadRunningJobs, 5000);
+}
+
+function renderRunningList() {
+  const list = document.getElementById('runningList');
+  // Show running + recently completed (within last 15s)
+  const now = Date.now();
+  const active = backtestJobs.filter(j => {
+    if (j.status === 'running') return true;
+    if (!j._completedAt) return false;
+    return (now - j._completedAt) < 15000; // stay visible 15s after completion
+  });
+  
+  document.getElementById('runningCount').textContent = active.length;
+  
+  if (active.length === 0) {
+    document.getElementById('runningPlaceholder').style.display = '';
+    list.innerHTML = '';
+    return;
+  }
+  document.getElementById('runningPlaceholder').style.display = 'none';
+  
+  list.innerHTML = active.map(job => {
+    const d = job.data;
+    const p = job.params || {};
+    const name = `${p.strategy||'?'} · ${p.pair||'?'} · ${p.timeframe||'?'}`;
+    
+    if (job.status !== 'running') {
+      // Completed / cancelled / error — show final result
+      const r = d.report || {};
+      const pnlColor = (r.net_pnl || 0) >= 0 ? 'var(--green)' : 'var(--red)';
+      const sign = (r.net_pnl || 0) >= 0 ? '+' : '';
+      const statusLabel = job.status === 'cancelled' ? '⏹ Остановлен' : job.status === 'error' ? '❌ Ошибка' : '✅ Завершён';
+      const statusColor = job.status === 'cancelled' ? 'var(--red)' : job.status === 'error' ? 'var(--red)' : 'var(--green)';
+      
+      return `<div class="result-card" style="border-color:${statusColor};opacity:0.9;transition:opacity .5s">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span style="font-size:20px">${job.status==='cancelled'?'⏹':job.status==='error'?'❌':(r.net_pnl||0)>=0?'🟢':'🔴'}</span>
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:14px">${name}</div>
+            <div style="font-size:11px;color:var(--muted)">ID: ${job.id} · <span style="color:${statusColor}">${statusLabel}</span> · Баланс: $${(p.balance||0).toLocaleString()} → $${(r.end_balance||0).toLocaleString()}</div>
+          </div>
+        </div>
+        ${r.total_trades ? `<div class="metrics">
+          <div class="metric"><div class="m-label">💰 P&L</div><div class="m-val" style="color:${pnlColor}">${sign}$${Math.abs(r.net_pnl||0).toFixed(2)}</div></div>
+          <div class="metric"><div class="m-label">📈 Винрейт</div><div class="m-val">${(r.win_rate||0).toFixed(1)}%</div></div>
+          <div class="metric"><div class="m-label">🔄 Сделок</div><div class="m-val">${r.total_trades}</div></div>
+          <div class="metric"><div class="m-label">📉 Просадка</div><div class="m-val" style="color:var(--red)">${(r.max_drawdown||0).toFixed(1)}%</div></div>
+        </div>` : '<p style="color:var(--muted);font-size:11px;margin-top:6px">Нет сделок за период</p>'}
+        <p style="font-size:10px;color:var(--muted);margin-top:8px">📚 Результат сохранён в историю. Карточка исчезнет через 15 сек.</p>
+      </div>`;
+    }
+    
+    // Running — live progress
+    const pct = d.progress || 0;
+    const bal = d.live_balance || (p.balance || 0);
+    const trades = d.live_trades || 0;
+    const wr = d.live_win_rate || 0;
+    const pnl = bal - (p.balance || 0);
+    
+    return `<div class="result-card" style="position:relative">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <span style="font-size:20px">🔄</span>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:14px">${name}</div>
+          <div style="font-size:11px;color:var(--muted)">ID: ${job.id} · Плечо: ${p.leverage||'?'}× · Баланс: $${(p.balance||0).toLocaleString()}</div>
+        </div>
+        <div style="width:24px;height:24px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite"></div>
+      </div>
+      <div style="width:100%;height:3px;background:var(--input);border-radius:2px;overflow:hidden;margin-bottom:8px">
+        <div style="width:${pct}%;height:100%;background:var(--accent);transition:width .3s"></div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px">${d.message||'...'} · ${pct}% · ${d.candles_processed||0}/${d.total_candles||'?'} свечей</div>
+      ${trades > 0 ? `<div class="metrics">
+        <div class="metric"><div class="m-label">💰 Баланс</div><div class="m-val">$${bal.toLocaleString()}</div></div>
+        <div class="metric"><div class="m-label">📈 Win Rate</div><div class="m-val" style="color:${wr>=50?'var(--green)':'var(--red)'}">${wr}%</div></div>
+        <div class="metric"><div class="m-label">🔄 Сделок</div><div class="m-val">${trades}</div></div>
+        <div class="metric"><div class="m-label">💵 P&L</div><div class="m-val" style="color:${pnl>=0?'var(--green)':'var(--red)'}">${pnl>=0?'+':''}$${Math.abs(pnl).toFixed(2)}</div></div>
+      </div>` : ''}
+      ${(d.events||[]).length > 0 ? `<div style="margin-top:8px;max-height:120px;overflow-y:auto;font-size:10px">
+        <div style="color:var(--muted);margin-bottom:4px">📋 События (последние 20):</div>
+        ${d.events.slice(-20).reverse().map(ev => {
+          if (ev.type === 'signal') {
+            const arrow = ev.side === 'BUY' ? '🟢' : '🔴';
+            return `<div style="padding:2px 0;border-bottom:1px solid var(--border);display:flex;gap:6px">
+              <span style="color:var(--muted);min-width:32px">#${ev.ts}</span>
+              <span>${arrow} <b>${ev.side}</b> @ $${ev.price} | RSI ${ev.rsi} | SL $${ev.sl} TP $${ev.tp}</span>
+            </div>`;
+          } else {
+            const pnlColor = ev.pnl >= 0 ? 'var(--green)' : 'var(--red)';
+            const sign = ev.pnl >= 0 ? '+' : '';
+            return `<div style="padding:2px 0;border-bottom:1px solid var(--border);display:flex;gap:6px">
+              <span style="color:var(--muted);min-width:32px">#${ev.ts}</span>
+              <span>💰 <b>${ev.side}</b> закрыт: $${ev.entry} → $${ev.exit} | <span style="color:${pnlColor}">${sign}$$${ev.pnl}</span> | ${ev.reason}</span>
+            </div>`;
+          }
+        }).join('')}
+      </div>` : ''}
+      <button class="cancel-btn" onclick="cancelBacktest('${job.id}')">⏹ Остановить</button>
+    </div>`;
+  }).join('');
+}
+
+async function cancelBacktest(id) {
+  try {
+    await fetch('/api/backtest/cancel?id=' + id, {method:'POST'});
+    const job = backtestJobs.find(j => j.id === id);
+    if (job && job.pollTimer) { clearInterval(job.pollTimer); job.pollTimer = null; }
+    job.status = 'cancelled';
+    job._completedAt = Date.now();
+    renderRunningList();
+    setTimeout(() => { loadHistory(); if (currentListTab === 'running') renderRunningList(); }, 16000);
+  } catch(e) {}
+}
+
+// ═══════════ HISTORY ═══════════
+async function loadHistory() {
+  try {
+    const resp = await fetch('/api/backtest/history');
+    const data = await resp.json();
+    const files = data.files || [];
+    
+    // Sort by updated_at descending (newest first)
+    files.sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
+    
+    document.getElementById('historyCount').textContent = files.length;
+    const placeholder = document.getElementById('historyPlaceholder');
+    const list = document.getElementById('historyList');
+    
+    if (files.length === 0) {
+      placeholder.textContent = 'Нет завершённых бэктестов';
+      placeholder.style.display = '';
+      list.innerHTML = '';
+      return;
+    }
+    
+    placeholder.style.display = 'none';
+    
+    list.innerHTML = files.map(f => {
+      const summary = f.summary || {};
+      const bestColor = (summary.best_run_pnl || 0) >= 0 ? 'var(--green)' : 'var(--red)';
+      const totalColor = (summary.total_pnl || 0) >= 0 ? 'var(--green)' : 'var(--red)';
+      return `<div class="result-card" style="cursor:pointer" onclick="loadHistoryFile('${f.strategy}','${f.pair}','${f.timeframe}')">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span style="font-size:20px">${(summary.total_pnl||0)>=0?'🟢':'🔴'}</span>
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:14px">${f.strategy} · ${f.pair} · ${f.timeframe}</div>
+            <div style="font-size:11px;color:var(--muted)">${f.total_runs} запусков · обновлено ${(f.updated_at||'').slice(0,16)}</div>
+          </div>
+        </div>
+        <div class="metrics">
+          <div class="metric"><div class="m-label">💰 Общий P&L</div><div class="m-val" style="color:${totalColor}">${(summary.total_pnl||0)>=0?'+':''}$${(summary.total_pnl||0).toFixed(2)}</div></div>
+          <div class="metric"><div class="m-label">📈 Винрейт</div><div class="m-val">${(summary.win_rate||0).toFixed(1)}%</div></div>
+          <div class="metric"><div class="m-label">🔄 Всего сделок</div><div class="m-val">${summary.total_trades||0}</div></div>
+          <div class="metric"><div class="m-label">🏆 Лучший</div><div class="m-val" style="color:${bestColor}">${(summary.best_run_pnl||0)>=0?'+':''}$${(summary.best_run_pnl||0).toFixed(2)}</div></div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {}
+  if (historyPollTimer) clearTimeout(historyPollTimer);
+  historyPollTimer = setTimeout(loadHistory, 30000);
+}
+
+async function loadHistoryFile(strategy, pair, tf) {
+  try {
+    const resp = await fetch(`/api/backtest/history-file?strategy=${strategy}&pair=${pair}&timeframe=${tf}`);
+    const data = await resp.json();
+    if (!data.runs) return;
+    
+    const runs = data.runs.slice().reverse(); // newest first
+    const summary = data.summary || {};
+    const sourceCode = data.source_code || '# Исходный код недоступен';
+    
+    // Collect all trades from all runs
+    const allTrades = [];
+    runs.forEach(r => {
+      const trades = (r.report && r.report.trades_list) ? r.report.trades_list : [];
+      trades.forEach(t => allTrades.push({...t, run_id: r.id, run_ts: r.timestamp}));
+    });
+    
+    // Build tab header
+    const headerHtml = `<div style="margin-bottom:16px">
+      <button class="btn btn-back" onclick="backToStart()" style="margin-bottom:12px;padding:8px 16px;font-size:13px">← Назад</button>
+      <h2 style="font-size:18px;margin-bottom:4px">${strategy} · ${pair} · ${tf}</h2>
+      <p style="font-size:12px;color:var(--muted)">${data.total_runs} запусков · общий P&L: <b style="color:${(summary.total_pnl||0)>=0?'var(--green)':'var(--red)'}">${(summary.total_pnl||0)>=0?'+':''}$${(summary.total_pnl||0).toFixed(2)}</b></p>
+    </div>
+    <div class="tab-bar" style="margin-bottom:16px">
+      <button class="tab-btn active" onclick="switchDetailTab('runs')">📋 Запуски</button>
+      <button class="tab-btn" onclick="switchDetailTab('code')">📜 Код</button>
+      <button class="tab-btn" onclick="switchDetailTab('trades')">📊 Сделки <span class="count">${allTrades.length}</span></button>
+    </div>`;
+    
+    // Tab: Runs
+    const runsHtml = runs.map(r => {
+      const rp = r.report || {};
+      const color = (rp.net_pnl||0) >= 0 ? 'var(--green)' : 'var(--red)';
+      const sign = (rp.net_pnl||0) >= 0 ? '+' : '';
+      const status = rp.status || '';
+      const statusBadge = status === 'CANCELLED' ? '<span style="font-size:9px;background:rgba(239,68,68,0.15);color:var(--red);padding:2px 6px;border-radius:4px;margin-left:6px">ОСТАНОВЛЕН</span>' : '';
+      return `<div class="result-card">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="font-weight:600;font-size:13px">${(r.timestamp||'').slice(0,16).replace('T',' ')}</span>${statusBadge}
+          <span style="margin-left:auto;font-size:11px;color:var(--muted)">Баланс: $${(r.balance||0).toLocaleString()} · Плечо: ${r.leverage}× · Период: ${r.period}д</span>
+        </div>
+        <div class="metrics">
+          <div class="metric"><div class="m-label">💰 P&L</div><div class="m-val" style="color:${color}">${sign}$${Math.abs(rp.net_pnl||0).toFixed(2)}</div></div>
+          <div class="metric"><div class="m-label">📈 Винрейт</div><div class="m-val">${(rp.win_rate||0).toFixed(1)}%</div></div>
+          <div class="metric"><div class="m-label">🔄 Сделок</div><div class="m-val">${rp.total_trades||0}</div></div>
+          <div class="metric"><div class="m-label">📉 Просадка</div><div class="m-val" style="color:var(--red)">${(rp.max_drawdown||0).toFixed(1)}%</div></div>
+        </div>
+      </div>`;
+    }).join('');
+    
+    // Tab: Code
+    const codeHtml = `<pre style="background:var(--input);color:var(--text);padding:16px;border-radius:12px;font-size:12px;line-height:1.5;overflow-x:auto;max-height:70vh;overflow-y:auto;white-space:pre-wrap;word-break:break-word;border:1px solid var(--border)"><code>${escapeHtml(sourceCode)}</code></pre>`;
+    
+    // Tab: Trades
+    let tradesHtml = '<div style="font-size:12px;color:var(--muted);margin-bottom:12px">Все сделки по всем запускам</div>';
+    if (allTrades.length === 0) {
+      tradesHtml += '<div class="placeholder">Нет сделок</div>';
+    } else {
+      tradesHtml += '<div style="max-height:70vh;overflow-y:auto">';
+      allTrades.forEach((t, i) => {
+        const pnlColor = t.pnl >= 0 ? 'var(--green)' : 'var(--red)';
+        const typeColor = t.type === 'BUY' ? 'var(--green)' : 'var(--red)';
+        tradesHtml += `<div class="result-card" style="padding:10px 14px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-weight:600;color:${typeColor};min-width:40px">${t.type}</span>
+            <span style="flex:1;font-size:13px">Вход: <b>$${t.entry}</b> → Выход: <b>$${t.exit}</b></span>
+            <span style="font-weight:600;color:${pnlColor}">${t.pnl>=0?'+':''}$${t.pnl.toFixed(2)} (${t.pnl_pct}%)</span>
+          </div>
+          <div style="display:flex;gap:16px;margin-top:4px;font-size:11px;color:var(--muted)">
+            <span>${t.reason}</span>
+            <span>${t.bars} свечей</span>
+            <span style="margin-left:auto">${(t.run_ts||'').slice(0,16).replace('T',' ')}</span>
+          </div>
+        </div>`;
+      });
+      tradesHtml += '</div>';
+    }
+    
+    // Store tab data for switching
+    window._detailData = {
+      runsHtml, codeHtml, tradesHtml, headerHtml,
+      strategy, pair, tf
+    };
+    
+    document.getElementById('startScreen').style.display = 'none';
+    document.getElementById('wizardWrap').style.display = 'none';
+    document.getElementById('resultsWrap').classList.add('show');
+    document.getElementById('resultsContent').innerHTML = headerHtml + '<div id="detailTabContent">' + runsHtml + '</div>';
+    document.getElementById('headerTitle').textContent = `📚 ${strategy} · ${pair} · ${tf}`;
+  } catch(e) {}
+}
+
+function switchDetailTab(tab) {
+  const data = window._detailData;
+  if (!data) return;
+  const content = tab === 'runs' ? data.runsHtml : tab === 'code' ? data.codeHtml : data.tradesHtml;
+  document.getElementById('detailTabContent').innerHTML = content;
+  // Update active tab
+  document.querySelectorAll('#resultsContent .tab-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.trim().startsWith(tab === 'runs' ? '📋' : tab === 'code' ? '📜' : '📊'));
+  });
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ═══════════ INIT ═══════════
+function init() {
+  injectThemeToggle('.theme-toggle-wrap');
+  const pc = document.getElementById('pairCards');
+  PAIRS.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.setAttribute('data-pair', p.id);
+    div.onclick = function(){ selectCard(this,'pair'); };
+    div.innerHTML = `<span class="icon">${p.icon}</span><div class="info"><div class="name">${p.name} <span style="color:var(--muted);font-weight:400">/ ${p.quote}</span></div><div class="desc">Binance Spot · Объём ${p.vol}</div></div><div class="check"></div>`;
+    pc.appendChild(div);
+  });
+  const tg = document.getElementById('tfGrid');
+  TIMEFRAMES.forEach(tf => {
+    const btn = document.createElement('div');
+    btn.className = 'tf-btn';
+    btn.setAttribute('data-tf', tf.id);
+    btn.onclick = function(){ selectTF(tf.id); };
+    btn.innerHTML = `<div style="font-size:18px">${tf.label}</div><div class="tf-min">${tf.desc}</div>`;
+    tg.appendChild(btn);
+  });
+  const lr = document.getElementById('levRow');
+  LEVERAGES.forEach(l => {
+    const btn = document.createElement('div');
+    btn.className = 'lev-btn';
+    btn.setAttribute('data-lev', l);
+    btn.onclick = function(){ selectLev(l); };
+    btn.textContent = l + '×';
+    lr.appendChild(btn);
+  });
+  updateStepUI();
+  loadRunningJobs();
+  loadHistory();
+}
+
+// ═══════════ SELECTION ═══════════
+function selectCard(el, type) {
+  el.parentElement.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  state[type] = el.getAttribute('data-' + type);
+}
+function selectTF(tfId) {
+  document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('selected'));
+  const btn = document.querySelector(`[data-tf="${tfId}"]`);
+  if (btn) btn.classList.add('selected');
+  state.timeframe = tfId;
+}
+function selectLev(l) {
+  document.querySelectorAll('.lev-btn').forEach(b => b.classList.remove('selected'));
+  const btn = document.querySelector(`[data-lev="${l}"]`);
+  if (btn) btn.classList.add('selected');
+  state.leverage = l;
+  document.getElementById('levWarn').classList.toggle('show', l >= 10);
+}
+function updateBalance(val) {
+  state.balance = parseInt(val);
+  document.getElementById('balanceValue').textContent = '$' + parseInt(val).toLocaleString();
+  document.querySelectorAll('#step6 .preset').forEach(p => p.classList.remove('active'));
+  updatePositionLimits();
+}
+function setBalance(val) {
+  document.getElementById('balanceSlider').value = val;
+  updateBalance(val);
+  document.querySelectorAll('#step6 .preset').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+}
+function updatePeriod(val) {
+  state.period = parseInt(val);
+  const v = parseInt(val);
+  document.getElementById('periodValue').textContent = v + ' ' + (v === 1 ? 'день' : v < 5 ? 'дня' : 'дней');
+  document.querySelectorAll('#step8 .preset').forEach(p => p.classList.remove('active'));
+}
+function setPeriod(val) {
+  document.getElementById('periodSlider').value = val;
+  updatePeriod(val);
+  document.querySelectorAll('#step8 .preset').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+}
+function updatePositionLimits() {
+  const lev = state.leverage || 1;
+  const maxPos = Math.floor(state.balance / lev);
+  const slider = document.getElementById('positionSlider');
+  slider.max = maxPos;
+  document.getElementById('posMaxLabel').textContent = '$' + maxPos.toLocaleString();
+  document.getElementById('posMaxInfo').innerHTML = 'Максимум: <b>$' + maxPos.toLocaleString() + '</b> (баланс ÷ плечо)';
+  if (state.positionSize > maxPos) { state.positionSize = maxPos; slider.value = maxPos; document.getElementById('positionValue').textContent = '$' + maxPos.toLocaleString(); }
+  const presets = document.getElementById('posPresets');
+  const vals = [Math.floor(maxPos*0.1), Math.floor(maxPos*0.25), Math.floor(maxPos*0.5), Math.floor(maxPos*0.75), maxPos];
+  presets.innerHTML = vals.filter(v => v >= 1 && v <= maxPos).map(v => `<span class="preset${state.positionSize===v?' active':''}" onclick="setPosition(${v})">$${v.toLocaleString()}</span>`).join('');
+}
+function updatePosition(val) {
+  state.positionSize = parseInt(val);
+  document.getElementById('positionValue').textContent = '$' + parseInt(val).toLocaleString();
+  document.querySelectorAll('#step7 .preset').forEach(p => p.classList.remove('active'));
+}
+function setPosition(val) {
+  document.getElementById('positionSlider').value = val;
+  updatePosition(val);
+  document.querySelectorAll('#step7 .preset').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+// ═══════════ NAVIGATION ═══════════
+function goToStep(n) { state.currentStep = n; if (n === 7) updatePositionLimits(); updateStepUI(); }
+function nextStep() {
+  if (!validateStep()) return;
+  if (state.currentStep < 9) { state.currentStep++; if (state.currentStep === 7) updatePositionLimits(); updateStepUI(); if (state.currentStep === 9) buildSummary(); }
+}
+function prevStep() { if (state.currentStep > 1) { state.currentStep--; updateStepUI(); } }
+function validateStep() {
+  switch(state.currentStep) {
+    case 1: if (!state.mode) { alert('Выбери режим тестирования'); return false; } break;
+    case 2: if (!state.strategy) { alert('Выбери стратегию'); return false; } break;
+    case 3: if (!state.pair) { alert('Выбери торговую пару'); return false; } break;
+    case 4: if (!state.timeframe) { alert('Выбери таймфрейм'); return false; } break;
+    case 5: if (!state.leverage) { alert('Выбери кредитное плечо'); return false; } break;
+    case 7: if (state.positionSize > Math.floor(state.balance / (state.leverage||1))) { alert('Сумма сделки не может превышать баланс ÷ плечо'); return false; } break;
+  }
+  return true;
+}
+function updateStepUI() {
+  const s = state.currentStep;
+  for (let i = 1; i <= 9; i++) { const el = document.getElementById('step'+i); if (el) el.classList.toggle('active', i===s); }
+  document.getElementById('progressFill').style.width = ((s-1)/8*100) + '%';
+  document.querySelectorAll('.step-dot').forEach(dot => {
+    const step = parseInt(dot.getAttribute('data-step'));
+    dot.classList.remove('done','active');
+    if (step < s) dot.classList.add('done');
+    if (step === s) dot.classList.add('active');
+  });
+  const backBtn = document.getElementById('backBtn'), nextBtn = document.getElementById('nextBtn'), navRow = document.getElementById('navRow');
+  navRow.style.display = s === 9 ? 'none' : 'flex';
+  backBtn.style.display = s > 1 ? '' : 'none';
+  // Update period step description based on mode
+  if (s === 8) {
+    const periodSub = document.getElementById('periodSub');
+    const periodTitle = document.querySelector('#step8 h2');
+    if (state.mode === 'live') {
+      if (periodSub) periodSub.textContent = 'Сколько дней стратегия будет торговать на реальных данных';
+      if (periodTitle) periodTitle.textContent = '📅 Длительность торговли';
+    } else {
+      if (periodSub) periodSub.textContent = 'На каком историческом отрезке прогоняем стратегию';
+      if (periodTitle) periodTitle.textContent = '📅 Период тестирования';
+    }
+  }
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+function buildSummary() {
+  const pair = PAIRS.find(p => p.id === state.pair);
+  const tf = TIMEFRAMES.find(t => t.id === state.timeframe);
+  const modeName = state.mode === 'live' ? '🔴 Реальные данные (Live)' : '📜 Исторические данные';
+  const stratNames = {rsi:'RSI-стратегия (signal_v6)',hammer:'Hammer (Молот)',bullish_engulfing:'Бычье поглощение',morning_star:'Утренняя звезда',piercing_line:'Пронизывающая линия',swing:'SWING-стратегия',rsi_trailing:'RSI Трейлинг-стоп'};
+  const stratName = stratNames[state.strategy] || state.strategy;
+  const isLive = state.mode === 'live';
+  document.getElementById('summaryBox').innerHTML = `
+    <h3>📋 Настройки ${isLive ? 'торговли' : 'бэктеста'}</h3>
+    <div class="row"><span class="label">Режим</span><span class="val">${modeName}</span></div>
+    <div class="row"><span class="label">Стратегия</span><span class="val">${stratName}</span></div>
+    <div class="row"><span class="label">Пара</span><span class="val">${pair?pair.name:state.pair} / USDT</span></div>
+    <div class="row"><span class="label">Таймфрейм</span><span class="val">${tf?tf.label:state.timeframe}</span></div>
+    <div class="row"><span class="label">Плечо</span><span class="val">${state.leverage}×</span></div>
+    <div class="row"><span class="label">Баланс</span><span class="val">$${state.balance.toLocaleString()}</span></div>
+    <div class="row"><span class="label">Сумма сделки</span><span class="val">$${state.positionSize.toLocaleString()}</span></div>
+    <div class="row"><span class="label">Период</span><span class="val">${state.period} дн.</span></div>
+    ${isLive ? '' : `<div style="margin-top:14px">
+      <span style="font-size:13px;color:var(--muted)">⚡ Скорость</span>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="preset${state.speed==='fast'?' active':''}" onclick="setSpeed('fast')" style="flex:1;text-align:center;padding:10px">⚡ Быстро</button>
+        <button class="preset${state.speed==='step'?' active':''}" onclick="setSpeed('step')" style="flex:1;text-align:center;padding:10px">🐢 Пошагово (50ms/свеча)</button>
+      </div>
+    </div>`}`;
+  // Dynamic button text
+  const startBtn = document.getElementById('startBtn');
+  if (startBtn) {
+    startBtn.textContent = isLive ? '🚀 Запустить торговлю' : '🚀 Запустить бэктест';
+  }
+}
+
+function setSpeed(s) { state.speed = s; buildSummary(); }
+
+// ═══════════ BACKTEST ═══════════
+async function startBacktest() {
+  const btn = document.getElementById('startBtn');
+  const isLive = state.mode === 'live';
+  const launchText = isLive ? '🚀 Запустить торговлю' : '🚀 Запустить бэктест';
+  btn.disabled = true; btn.textContent = '⏳ Запуск...';
+  try {
+    const params = {mode:state.mode,strategy:state.strategy,pair:state.pair,timeframe:state.timeframe,leverage:state.leverage,balance:state.balance,position_size:state.positionSize,period:state.period,speed:state.speed};
+    const resp = await fetch('/api/backtest/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(params)});
+    const data = await resp.json();
+    if (data.error) { alert(data.error); btn.disabled = false; btn.textContent = launchText; return; }
+    const job = {id:data.backtest_id,status:'running',params:params,pollTimer:null,data:{status:'running',progress:0,message:'Запуск...',candles_processed:0}};
+    backtestJobs.push(job);
+    job.pollTimer = setInterval(() => pollJob(job), 3000);
+    btn.disabled = false; btn.textContent = '🚀 Запустить ещё';
+    backToStart();
+    switchListTab('running');
+  } catch(e) { alert('Ошибка: '+e.message); btn.disabled = false; btn.textContent = launchText; }
+}
+
+async function pollJob(job) {
+  try {
+    const resp = await fetch('/api/backtest/progress?id='+job.id);
+    job.data = await resp.json();
+    if (job.data.status === 'done' || job.data.status === 'error' || job.data.status === 'cancelled') {
+      if (job.pollTimer) { clearInterval(job.pollTimer); job.pollTimer = null; }
+      job.status = job.data.status;
+      job._completedAt = Date.now(); // timestamp for 15s visibility window
+      loadHistory();
+      // Schedule removal from running list
+      setTimeout(() => {
+        if (currentListTab === 'running') renderRunningList();
+      }, 16000);
+    }
+    if (currentListTab === 'running') renderRunningList();
+  } catch(e) {}
+}
+
+// ═══════════ TOOLTIP ═══════════
+const TOOLTIPS = {
+  rsi:{icon:'📈',name:'RSI-стратегия (signal_v6)',desc:'Быстрая стратегия на основе RSI с фильтрами: стакан, ончейн, сентимент, TV-индикаторы.',params:[['RSI Buy','< 30'],['RSI Sell','> 75'],['Stop Loss','1.2%'],['Take Profit','2.4%'],['Cooldown','15 минут'],['ADX-фильтр','20'],['Комиссия','0.04%']],reco:'💡 TF=5m-15m, плечо 3×, баланс $100-500. Лучше всего на боковике.'},
+  swing:{icon:'🐢',name:'SWING-стратегия',desc:'Долгосрочная стратегия с широкими SL/TP, трейлинг-стопом.',params:[['RSI Buy','< 30'],['RSI Sell','> 75'],['Stop Loss','2.5%'],['Take Profit','5%'],['Cooldown','60 минут'],['Трейлинг-стоп','1%'],['Комиссия','0.04%']],reco:'💡 TF=1H-4H, плечо 2-3×, баланс $500-5000. Для терпеливых.'},
+  rsi_trailing:{icon:'🎯',name:'RSI Трейлинг-стоп',desc:'RSI-стратегия БЕЗ фиксированного тейк-профита. Стоп-лосс (1.2%) скользит за ценой, когда она идёт в нашу сторону. Сделка закрывается ТОЛЬКО когда цена разворачивается и бьёт по стопу.',params:[['RSI Buy','< 30'],['RSI Sell','> 75'],['Stop Loss','1.2% (скользящий)'],['Take Profit','НЕТ — только трейлинг'],['Активация трейлинга','после +0.5% в профит'],['Cooldown','15 минут'],['Комиссия','0.04%']],reco:'💡 TF=5m-15m, плечо 3×, баланс $100-500. Лучше всего на трендовых движениях — ловит большие свечи без преждевременного выхода по TP.'},
+  hammer:{icon:'🔨',name:'Hammer (Молот)',desc:'Свечной паттерн разворота. Ищет молот (нижняя тень ≥ 2× тело) после 3 свечей падения. Только LONG. Фиксированный RR 1:2, SL под минимумом молота.',params:[['Тип','Только LONG'],['Вход','На открытии после молота'],['Stop Loss','low × 0.998'],['Take Profit','entry + риск × 2'],['Тайм-аут','20 свечей'],['Кулдаун','5 свечей'],['Комиссия','0.04%']],reco:'💡 TF=5m-15m, плечо 2-3×, баланс $100-1000. Период ≥ 7 дней. Нужен нисходящий тренд — на бычьем рынке сигналов мало.'},
+  bullish_engulfing:{icon:'🐂',name:'Бычье поглощение',desc:'Свечной паттерн разворота: красная свеча → зелёная с телом, полностью перекрывающим тело предыдущей. Только LONG. Фиксированный RR 1:2, SL под минимумом двух свечей.',params:[['Тип','Только LONG'],['Вход','На открытии после подтверждения'],['Stop Loss','min(low) × 0.995'],['Take Profit','entry + риск × 2'],['Тайм-аут','30 свечей'],['Кулдаун','5 свечей'],['Комиссия','0.04%']],reco:'💡 TF=15m-1h, плечо 2-3×. Один из самых надёжных разворотных паттернов. Ищи на дневном таймфрейме для максимальной точности.'},
+  morning_star:{icon:'⭐',name:'Утренняя звезда',desc:'Классический 3-свечной разворот: красная → доджи/волчок → зелёная выше середины первой. Только LONG. SL под минимумом трёх свечей, RR 1:2.',params:[['Тип','Только LONG'],['Сигнал','3 свечи: ↓ → – → ↑'],['Stop Loss','min(low 3 свечей) × 0.995'],['Take Profit','entry + риск × 2'],['Тайм-аут','30 свечей'],['Кулдаун','5 свечей'],['Комиссия','0.04%']],reco:'💡 TF=1h-4h, плечо 2×. Самый редкий, но самый надёжный из трёх. Лучше всего на дневных свечах — сигналов мало, но точность высокая.'},
+  piercing_line:{icon:'🔪',name:'Пронизывающая линия',desc:'Разворотный паттерн: красная свеча → зелёная открывается ниже минимума красной, закрывается выше середины её тела. Только LONG. RR 1:2.',params:[['Тип','Только LONG'],['Вход','На открытии после подтверждения'],['Stop Loss','min(low) × 0.995'],['Take Profit','entry + риск × 2'],['Тайм-аут','30 свечей'],['Кулдаун','5 свечей'],['Комиссия','0.04%']],reco:'💡 TF=15m-1h, плечо 2-3×. Хорошо работает после сильных падений. Чем глубже пронизывание (ближе к open красной), тем сильнее сигнал.'},
+  mode_history:{icon:'📜',name:'Исторические данные (Backtest)',desc:'Классический бэктест на исторических свечах с Binance. Стратегия прогоняется на прошлых данных за выбранный период. Все сделки симулируются — входы и выходы проверяются по историческим ценам.',params:[['Данные','Исторические свечи Binance'],['Скорость','Мгновенно (или пошагово 50ms/свеча)'],['Результат','Отчёт + график'],['Файлы','2 файла: индивидуальный + история'],['Период','От 1 до 30 дней']],reco:'💡 Используй для проверки гипотез и оптимизации параметров. Быстро, бесплатно, не требует реальных денег.'},
+  mode_live:{icon:'🔴',name:'Реальные данные (Live Trading)',desc:'Стратегия запускается на N дней вперёд на реальных рыночных данных. Сигналы проверяются в реальном времени, сделки открываются по текущей цене. Это НЕ симуляция — стратегия работает как настоящий трейдер.',params:[['Данные','Реальные свечи Binance (WebSocket)'],['Длительность','N дней (из настроек периода)'],['Сделки','Открываются по сигналам в реальном времени'],['Риск','Реальный — используй с осторожностью'],['Остановка','Можно остановить досрочно']],reco:'💡 Используй на маленьком балансе ($10-50) для проверки стратегии в боевых условиях. Не оставляй без присмотра!'},
+};
+function showTooltip(strategy) {
+  const t = TOOLTIPS[strategy]; if (!t) return;
+  let paramsHTML = ''; t.params.forEach(([label,val]) => { paramsHTML += `<div class="param-row"><span class="p-label">${label}</span><span class="p-val">${val}</span></div>`; });
+  document.getElementById('tooltipBox').innerHTML = `<h3>${t.icon} ${t.name}</h3><div class="desc">${t.desc}</div><div class="params-title">📋 Параметры</div>${paramsHTML}<div class="reco">${t.reco}</div><button class="close-btn" onclick="closeTooltip()">Понятно</button>`;
+  document.getElementById('tooltipOverlay').classList.add('show');
+}
+function closeTooltip(e) {
+  if (e && e.target !== document.getElementById('tooltipOverlay')) return;
+  document.getElementById('tooltipOverlay').classList.remove('show');
+}
+
+init();
+</script>
+<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{})}</script>
+</body>
+</html>

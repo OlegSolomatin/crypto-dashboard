@@ -1,0 +1,133 @@
+{
+  "strategy": "rsi_trailing",
+  "pair": "TONUSDT",
+  "timeframe": "5m",
+  "created_at": "2026-05-23T14:03:08.682506",
+  "updated_at": "2026-05-23T14:03:08.682506",
+  "total_runs": 1,
+  "summary": {
+    "total_runs": 1,
+    "total_pnl": -2.31,
+    "total_trades": 16,
+    "total_wins": 6,
+    "total_losses": 10,
+    "win_rate": 37.5,
+    "max_drawdown": 0.3,
+    "best_run_pnl": -2.31,
+    "worst_run_pnl": -2.31,
+    "avg_pnl_per_run": -2.31
+  },
+  "runs": [
+    {
+      "id": "bt_1",
+      "timestamp": "2026-05-23T14:03:08.682506",
+      "balance": 1000.0,
+      "leverage": 3,
+      "position_size": 50.0,
+      "period": 7,
+      "report": {
+        "start_balance": 1000.0,
+        "end_balance": 997.69,
+        "net_pnl": -2.31,
+        "total_trades": 16,
+        "winning_trades": 6,
+        "losing_trades": 10,
+        "win_rate": 37.5,
+        "avg_pnl": -0.14,
+        "max_drawdown": 0.3,
+        "trades_list": [
+          {
+            "type": "BUY",
+            "entry": 2.04,
+            "exit": 2.0373,
+            "pnl": -0.1062,
+            "pnl_pct": -0.13,
+            "reason": "TRAILING_STOP",
+            "bars": 18
+          },
+          {
+            "type": "BUY",
+            "entry": 2.034,
+            "exit": 2.0096,
+            "pnl": -0.6398,
+            "pnl_pct": -1.2,
+            "reason": "TRAILING_STOP",
+            "bars": 9
+          },
+          {
+            "type": "BUY",
+            "entry": 2.001,
+            "exit": 2.0116,
+            "pnl": 0.2249,
+            "pnl_pct": 0.53,
+            "reason": "TRAILING_STOP",
+            "bars": 13
+          },
+          {
+            "type": "SELL",
+            "entry": 2.064,
+            "exit": 2.0594,
+            "pnl": 0.0714,
+            "pnl_pct": 0.22,
+            "reason": "TRAILING_STOP",
+            "bars": 34
+          },
+          {
+            "type": "BUY",
+            "entry": 2.054,
+            "exit": 2.0461,
+            "pnl": -0.2323,
+            "pnl_pct": -0.38,
+            "reason": "TRAILING_STOP",
+            "bars": 29
+          },
+          {
+            "type": "BUY",
+            "entry": 2.017,
+            "exit": 1.9928,
+            "pnl": -0.6399,
+            "pnl_pct": -1.2,
+            "reason": "TRAILING_STOP",
+            "bars": 51
+          },
+          {
+            "type": "BUY",
+            "entry": 1.98,
+            "exit": 1.9562,
+            "pnl": -0.641,
+            "pnl_pct": -1.2,
+            "reason": "TRAILING_STOP",
+            "bars": 3
+          },
+          {
+            "type": "BUY",
+            "entry": 1.949,
+            "exit": 1.9256,
+            "pnl": -0.6403,
+            "pnl_pct": -1.2,
+            "reason": "TRAILING_STOP",
+            "bars": 2
+          },
+          {
+            "type": "BUY",
+            "entry": 1.823,
+            "exit": 1.8456,
+            "pnl": 0.5799,
+            "pnl_pct": 1.24,
+            "reason": "TRAILING_STOP",
+            "bars": 53
+          },
+          {
+            "type": "BUY",
+            "entry": 1.809,
+            "exit": 1.7972,
+            "pnl": -0.3661,
+            "pnl_pct": -0.65,
+            "reason": "TRAILING_STOP",
+            "bars": 27
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "strategy": "rsi",
+  "pair": "ETHUSDT",
+  "timeframe": "1d",
+  "created_at": "2026-05-22T20:39:19.823487",
+  "updated_at": "2026-05-22T20:39:19.823487",
+  "total_runs": 1,
+  "summary": {
+    "total_runs": 1,
+    "total_pnl": 52.0,
+    "total_trades": 2,
+    "total_wins": 1,
+    "total_losses": 1,
+    "win_rate": 50.0,
+    "max_drawdown": 0.1,
+    "best_run_pnl": 52.0,
+    "worst_run_pnl": 52.0,
+    "avg_pnl_per_run": 52.0
+  },
+  "runs": [
+    {
+      "id": "bt_3",
+      "timestamp": "2026-05-22T20:39:19.823487",
+      "balance": 100000.0,
+      "leverage": 2,
+      "position_size": 5000.0,
+      "period": 7,
+      "report": {
+        "start_balance": 100000.0,
+        "end_balance": 100052.0,
+        "net_pnl": 52.0,
+        "total_trades": 2,
+        "winning_trades": 1,
+        "losing_trades": 1,
+        "win_rate": 50.0,
+        "avg_pnl": 26.0,
+        "max_drawdown": 0.1,
+        "trades_list": [
+          {
+            "type": "BUY",
+            "entry": 2026.48,
+            "exit": 2075.1155,
+            "pnl": 116.0,
+            "pnl_pct": 2.4,
+            "reason": "TAKE_PROFIT",
+            "bars": 1
+          },
+          {
+            "type": "BUY",
+            "entry": 2131.0,
+            "exit": 2105.428,
+            "pnl": -64.0,
+            "pnl_pct": -1.2,
+            "reason": "STOP_LOSS",
+            "bars": 1
+          }
+        ]
+      }
+    }
+  ]
+}

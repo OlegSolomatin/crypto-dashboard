@@ -1,0 +1,62 @@
+{
+  "strategy": "hammer",
+  "pair": "BTCUSDT",
+  "timeframe": "4h",
+  "created_at": "2026-05-24T21:30:14.026538",
+  "updated_at": "2026-05-24T22:21:29.958982",
+  "total_runs": 2,
+  "summary": {
+    "total_runs": 2,
+    "total_pnl": 0,
+    "total_trades": 0,
+    "total_wins": 0,
+    "total_losses": 0,
+    "win_rate": 0,
+    "max_drawdown": 0,
+    "best_run_pnl": 0,
+    "worst_run_pnl": 0,
+    "avg_pnl_per_run": 0.0
+  },
+  "runs": [
+    {
+      "id": "bt_2",
+      "timestamp": "2026-05-24T21:30:14.026538",
+      "balance": 100000.0,
+      "leverage": 5,
+      "position_size": 20000.0,
+      "period": 14,
+      "report": {
+        "start_balance": 100000.0,
+        "end_balance": 100000.0,
+        "net_pnl": 0,
+        "total_trades": 0,
+        "winning_trades": 0,
+        "losing_trades": 0,
+        "win_rate": 0,
+        "avg_pnl": 0,
+        "max_drawdown": 0,
+        "trades_list": []
+      }
+    },
+    {
+      "id": "bt_5",
+      "timestamp": "2026-05-24T22:21:29.958982",
+      "balance": 100000.0,
+      "leverage": 5,
+      "position_size": 20000.0,
+      "period": 14,
+      "report": {
+        "start_balance": 100000.0,
+        "end_balance": 100000.0,
+        "net_pnl": 0,
+        "total_trades": 0,
+        "winning_trades": 0,
+        "losing_trades": 0,
+        "win_rate": 0,
+        "avg_pnl": 0,
+        "max_drawdown": 0,
+        "trades_list": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "job_id": "bt_1",
+  "timestamp": "2026-05-22T18:21:19.000531",
+  "params": {
+    "strategy": "swing",
+    "pair": "BTCUSDT",
+    "timeframe": "15m",
+    "leverage": 10,
+    "balance": 100000.0,
+    "position_size": 10000.0,
+    "period": 1
+  },
+  "report": {
+    "start_balance": 100000.0,
+    "end_balance": 99891.88,
+    "net_pnl": -108.12,
+    "total_trades": 1,
+    "winning_trades": 0,
+    "losing_trades": 1,
+    "win_rate": 0.0,
+    "avg_pnl": -108.12,
+    "max_drawdown": 0.1,
+    "trades_list": [
+      {
+        "type": "BUY",
+        "entry": 77622.14,
+        "exit": 76844.99,
+        "pnl": -108.1196,
+        "pnl_pct": -1.0,
+        "reason": "END_OF_PERIOD",
+        "bars": 131
+      }
+    ]
+  }
+}

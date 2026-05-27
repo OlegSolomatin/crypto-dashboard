@@ -1,0 +1,80 @@
+{
+  "job_id": "bt_2",
+  "timestamp": "2026-05-23T14:07:07.804964",
+  "params": {
+    "strategy": "rsi_trailing",
+    "pair": "BTCUSDT",
+    "timeframe": "5m",
+    "leverage": 5,
+    "balance": 100000.0,
+    "position_size": 20000.0,
+    "period": 7
+  },
+  "report": {
+    "start_balance": 100000.0,
+    "end_balance": 99203.24,
+    "net_pnl": -796.76,
+    "total_trades": 6,
+    "winning_trades": 1,
+    "losing_trades": 5,
+    "win_rate": 16.7,
+    "avg_pnl": -132.79,
+    "max_drawdown": 0.8,
+    "trades_list": [
+      {
+        "type": "SELL",
+        "entry": 77039.99,
+        "exit": 77964.4699,
+        "pnl": -256.0,
+        "pnl_pct": -1.2,
+        "reason": "TRAILING_STOP",
+        "bars": 237
+      },
+      {
+        "type": "SELL",
+        "entry": 78128.02,
+        "exit": 77677.6792,
+        "pnl": 99.2828,
+        "pnl_pct": 0.58,
+        "reason": "TRAILING_STOP",
+        "bars": 159
+      },
+      {
+        "type": "BUY",
+        "entry": 77299.58,
+        "exit": 76943.7802,
+        "pnl": -108.0574,
+        "pnl_pct": -0.46,
+        "reason": "TRAILING_STOP",
+        "bars": 233
+      },
+      {
+        "type": "BUY",
+        "entry": 76709.39,
+        "exit": 75788.8773,
+        "pnl": -256.0,
+        "pnl_pct": -1.2,
+        "reason": "TRAILING_STOP",
+        "bars": 11
+      },
+      {
+        "type": "BUY",
+        "entry": 75822.38,
+        "exit": 74912.5114,
+        "pnl": -256.0,
+        "pnl_pct": -1.2,
+        "reason": "TRAILING_STOP",
+        "bars": 115
+      },
+      {
+        "type": "SELL",
+        "entry": 74741.96,
+        "exit": 74756.84,
+        "pnl": -19.9817,
+        "pnl_pct": -0.02,
+        "reason": "END_OF_PERIOD",
+        "bars": 17
+      }
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "job_id": "bt_2",
+  "timestamp": "2026-05-26T01:02:30.602972",
+  "params": {
+    "strategy": "inverted_hammer",
+    "pair": "TONUSDT",
+    "timeframe": "30m",
+    "leverage": 5,
+    "balance": 100000.0,
+    "position_size": 20000.0,
+    "period": 21
+  },
+  "report": {
+    "start_balance": 100000.0,
+    "end_balance": 100000.0,
+    "net_pnl": 0,
+    "total_trades": 0,
+    "winning_trades": 0,
+    "losing_trades": 0,
+    "win_rate": 0,
+    "avg_pnl": 0,
+    "max_drawdown": 0,
+    "trades_list": []
+  }
+}

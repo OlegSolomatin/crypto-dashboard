@@ -1,0 +1,55 @@
+{
+  "strategy": "inverted_hammer",
+  "pair": "BTCUSDT",
+  "timeframe": "5m",
+  "created_at": "2026-05-25T00:18:59.375703",
+  "updated_at": "2026-05-25T00:18:59.375703",
+  "total_runs": 1,
+  "summary": {
+    "total_runs": 1,
+    "total_pnl": -51.64,
+    "total_trades": 1,
+    "total_wins": 0,
+    "total_losses": 1,
+    "win_rate": 0.0,
+    "max_drawdown": 0.1,
+    "best_run_pnl": -51.64,
+    "worst_run_pnl": -51.64,
+    "avg_pnl_per_run": -51.64
+  },
+  "runs": [
+    {
+      "id": "bt_1",
+      "timestamp": "2026-05-25T00:18:59.375703",
+      "balance": 100000.0,
+      "leverage": 5,
+      "position_size": 20000.0,
+      "period": 14,
+      "report": {
+        "start_balance": 100000.0,
+        "end_balance": 99948.36,
+        "net_pnl": -51.64,
+        "total_trades": 1,
+        "winning_trades": 0,
+        "losing_trades": 1,
+        "win_rate": 0.0,
+        "avg_pnl": -51.64,
+        "max_drawdown": 0.1,
+        "trades_list": [
+          {
+            "type": "SELL",
+            "entry": 77692.0,
+            "exit": 77669.97,
+            "pnl": -51.6444,
+            "pnl_pct": 0.03,
+            "reason": "TIMEOUT",
+            "bars": 30,
+            "detected_at": "2026-05-22 02:40:00",
+            "entry_time": "2026-05-22 02:50:00",
+            "exit_time": "2026-05-22 05:10:00"
+          }
+        ]
+      }
+    }
+  ]
+}
