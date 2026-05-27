@@ -12,124 +12,76 @@
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#08081c;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#e0e0f0;height:100dvh;width:100vw;display:flex}
 
-/* ====== HISTORY SIDEBAR ====== */
+/* History sidebar */
 .history-sidebar{
-  display:none;
-  width:300px;min-width:300px;height:100dvh;
-  background:rgba(8,8,28,.95);
-  border-right:1px solid rgba(124,92,252,.1);
-  z-index:20;
-  flex-direction:column;
-  overflow:hidden;
+  display:none;width:300px;min-width:300px;height:100dvh;
+  background:rgba(8,8,28,.95);border-right:1px solid rgba(124,92,252,.1);
+  z-index:20;flex-direction:column;overflow:hidden;
 }
-.history-header{
-  padding:16px 18px 10px;
-  border-bottom:1px solid rgba(124,92,252,.08);
-  flex-shrink:0;
-}
+.history-header{padding:16px 18px 10px;border-bottom:1px solid rgba(124,92,252,.08);flex-shrink:0}
 .history-header .hh-title{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
 .history-header .hh-sub{font-size:11px;color:#8888aa;margin-top:2px}
-.history-body{
-  flex:1;overflow-y:auto;
-  padding:12px 14px;
-  scrollbar-width:thin;scrollbar-color:rgba(124,92,252,.15) transparent;
-}
+.history-body{flex:1;overflow-y:auto;padding:8px 12px;scrollbar-width:thin;scrollbar-color:rgba(124,92,252,.15) transparent}
 .history-body::-webkit-scrollbar{width:4px}
-.history-body::-webkit-scrollbar-track{background:transparent}
 .history-body::-webkit-scrollbar-thumb{background:rgba(124,92,252,.2);border-radius:4px}
-.history-item{
-  display:flex;gap:10px;padding:10px 0;
-  border-bottom:1px solid rgba(124,92,252,.06);
-  animation:fadeSlide .4s ease both;
-}
-.history-item:last-child{border-bottom:none}
-.hi-time{font-size:10px;color:#666;flex-shrink:0;width:38px;padding-top:2px;text-align:right}
-.hi-content{flex:1;min-width:0}
-.hi-flow{display:flex;align-items:center;gap:4px;font-size:12px;flex-wrap:wrap}
-.hi-from,.hi-to{
-  font-weight:600;font-size:11px;padding:1px 6px;border-radius:4px;
-}
-.hi-arrow{color:#555;font-size:10px}
-.hi-task{font-size:11px;color:#aaa;margin-top:3px;line-height:1.4}
-@keyframes fadeSlide{
-  from{opacity:0;transform:translateY(6px)}
-  to{opacity:1;transform:translateY(0)}
-}
 
-/* ====== 3D SCENE ====== */
-#scene-wrap{
-  flex:1;height:100dvh;overflow:hidden;position:relative;
-  perspective:1200px; perspective-origin:50% 40%;
+/* History group (collapsible) */
+.history-group{
+  background:rgba(15,15,46,.6);border:1px solid rgba(124,92,252,.1);
+  border-radius:12px;margin-bottom:8px;overflow:hidden;
+  animation:fadeSlide .4s ease both;cursor:pointer;
 }
-#scene{
-  width:100%;height:100%;
-  transform-style:preserve-3d;
-  transition:transform .1s linear;
-  will-change:transform;
-  position:absolute;top:0;left:0;
+.history-group.open{border-color:rgba(124,92,252,.2)}
+.hg-header{
+  display:flex;align-items:center;gap:8px;padding:10px 12px;
+  transition:background .15s;user-select:none;
 }
+.hg-header:hover{background:rgba(124,92,252,.06)}
+.hg-time{font-size:10px;color:#666;flex-shrink:0;width:36px}
+.hg-title{font-size:12px;font-weight:600;flex:1}
+.hg-count{font-size:9px;color:#8888aa;background:rgba(124,92,252,.1);padding:2px 6px;border-radius:4px}
+.hg-toggle{color:#7c5cfc;font-size:10px;transition:transform .2s;flex-shrink:0}
+.history-group.open .hg-toggle{transform:rotate(180deg)}
+.hg-body{display:none;padding:0 12px 10px;border-top:1px solid rgba(124,92,252,.06);padding-top:8px}
+.history-group.open .hg-body{display:block}
+.hg-item{display:flex;gap:8px;padding:5px 0;font-size:11px;align-items:flex-start;animation:fadeSlide .3s ease both}
+.hg-item .hgi-time{font-size:9px;color:#666;width:30px;flex-shrink:0;padding-top:1px}
+.hg-item .hgi-desc{color:#aaa;line-height:1.4}
+.hg-item .hgi-flow{display:inline-flex;align-items:center;gap:3px;margin-right:4px}
+.hg-item .hgi-flow .from,.hg-item .hgi-flow .to{font-weight:600;font-size:10px;padding:0 4px;border-radius:3px}
+.hg-item .hgi-arrow{color:#555;font-size:8px}
 
-/* Agent card */
+/* Scene */
+#scene-wrap{flex:1;height:100dvh;overflow:hidden;position:relative}
+#scene{width:100%;height:100%;position:absolute;top:0;left:0}
+#lines-canvas{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:2}
+
 .agent-card{
-  position:absolute;
-  transform-style:preserve-3d;
-  cursor:pointer;
-  transition:transform .3s cubic-bezier(.4,0,.2,1),opacity .3s;
-  user-select:none;
+  position:absolute;cursor:pointer;user-select:none;
   -webkit-tap-highlight-color:transparent;
+  transition:opacity .3s;
+  transform-origin:center center;
+  will-change:transform;
 }
 .agent-card:hover .agent-avatar{transform:scale(1.08)}
-.agent-card.selected .agent-avatar{transform:scale(1.12)}
-.agent-card.selected .agent-avatar::after{opacity:1}
-
-/* Avatar */
+.agent-card.selected .agent-avatar{transform:scale(1.15)}
 .agent-avatar{
   width:62px;height:62px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;
-  font-size:30px;
-  margin:0 auto;
-  position:relative;
-  transition:transform .3s cubic-bezier(.4,0,.2,1),box-shadow .3s;
-  will-change:transform;
-}
-.agent-avatar::after{
-  content:'';position:absolute;inset:-4px;border-radius:50%;
-  border:2px solid var(--accent);
-  opacity:0;transition:opacity .3s;
-  box-shadow:0 0 16px var(--accent-shadow);
+  font-size:30px;margin:0 auto;
+  position:relative;transition:transform .3s cubic-bezier(.4,0,.2,1),box-shadow .3s;
+  box-shadow:0 0 20px var(--color)33, 0 4px 16px rgba(0,0,0,.3);
 }
 .agent-avatar .glow-ring{
-  position:absolute;inset:-6px;border-radius:50%;
-  border:1px solid var(--accent);
-  opacity:0.12;
+  position:absolute;inset:-4px;border-radius:50%;
+  border:1px solid var(--color);opacity:0.15;
 }
-
-/* Name */
-.agent-name{
-  text-align:center;
-  font-size:11px;font-weight:600;
-  margin-top:6px;
-  text-shadow:0 2px 8px rgba(0,0,0,.7);
-  white-space:nowrap;
-}
-
-/* Lines (SVG overlay) */
-#lines-svg{
-  position:absolute;top:0;left:0;width:100%;height:100%;
-  pointer-events:none;
-  z-index:0;
-}
-#lines-svg line, #lines-svg path{
-  stroke-width:1.5;
-  fill:none;
-  stroke-linecap:round;
-}
+.agent-name{text-align:center;font-size:11px;font-weight:600;margin-top:5px;text-shadow:0 2px 8px rgba(0,0,0,.7);white-space:nowrap}
 
 /* Header */
 .header{
   position:fixed;top:0;left:0;right:0;z-index:15;
-  display:flex;align-items:center;gap:12px;
-  padding:12px 16px;
+  display:flex;align-items:center;gap:12px;padding:12px 16px;
   background:linear-gradient(180deg,rgba(8,8,28,.92) 0%,transparent 100%);
   pointer-events:none;
 }
@@ -141,11 +93,9 @@ body{background:#08081c;overflow:hidden;font-family:-apple-system,BlinkMacSystem
   color:#e0e0f0;text-decoration:none;font-size:18px;
   transition:all .2s;flex-shrink:0;backdrop-filter:blur(4px);
 }
-.back-btn:hover{background:#14143a;border-color:#7c5cfc}
 .header-title{font-size:17px;font-weight:700;text-shadow:0 2px 8px rgba(0,0,0,.5)}
 .header-sub{font-size:11px;color:#8888aa;margin-top:1px}
 
-/* Legend */
 .legend{
   position:fixed;top:70px;right:12px;z-index:15;
   background:rgba(15,15,46,.85);border:1px solid rgba(124,92,252,.12);
@@ -153,89 +103,66 @@ body{background:#08081c;overflow:hidden;font-family:-apple-system,BlinkMacSystem
   font-size:10px;line-height:1.8;
 }
 .legend-item{display:flex;align-items:center;gap:6px}
+.legend-dot{display:inline-block;width:8px;height:8px;border-radius:50%;flex-shrink:0;box-shadow:0 0 6px currentColor}
 
 /* Info panel */
 .info-panel{
-  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
-  z-index:15;
+  position:fixed;bottom:20px;left:50%;z-index:15;
   background:rgba(15,15,46,.92);border:1px solid rgba(124,92,252,.2);
   border-radius:16px;padding:14px 18px;
-  backdrop-filter:blur(8px);
-  width:calc(100% - 32px);max-width:400px;
+  backdrop-filter:blur(8px);width:calc(100% - 32px);max-width:400px;
   transition:all .4s cubic-bezier(.4,0,.2,1);
   opacity:0;transform:translateX(-50%) translateY(20px);pointer-events:none;
 }
 .info-panel.visible{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
 .info-panel .ip-name{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px}
-.info-panel .ip-group{
-  font-size:10px;padding:2px 8px;border-radius:4px;
-  background:rgba(124,92,252,.15);color:#7c5cfc;
-  display:inline-block;margin-top:4px;
-}
+.info-panel .ip-group{font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(124,92,252,.15);color:#7c5cfc;display:inline-block;margin-top:4px}
 .info-panel .ip-desc{font-size:12px;color:#8888aa;margin-top:6px;line-height:1.5}
 .info-panel .ip-connections{font-size:11px;color:#8888aa;margin-top:6px}
 .info-panel .ip-connections span{color:#10b981}
 
-/* Hint */
 .hint{
   position:fixed;bottom:90px;left:50%;transform:translateX(-50%);
   z-index:5;font-size:11px;color:rgba(136,136,170,.3);text-align:center;
   pointer-events:none;animation:hintFade 8s forwards;
 }
 @keyframes hintFade{0%,70%{opacity:1}100%{opacity:0}}
+@keyframes fadeSlide{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
-/* Stars */
-.stars-canvas{
-  position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;
-  pointer-events:none;
-}
-
-/* Desktop sidebar */
-@media (min-width:1024px){
-  .history-sidebar{display:flex}
-  .legend{right:16px}
-}
-
-/* Mobile adjustments */
-@media (max-width:480px){
-  .agent-avatar{width:50px;height:50px;font-size:24px}
-  .agent-name{font-size:10px}
-}
+@media(min-width:1024px){.history-sidebar{display:flex}}
+@media(max-width:480px){.agent-avatar{width:50px;height:50px;font-size:24px}.agent-name{font-size:10px}}
 </style>
 </head>
 <body>
 
 <!-- History Sidebar -->
-<div class="history-sidebar" id="historySidebar">
+<div class="history-sidebar">
   <div class="history-header">
     <div class="hh-title">📋 История задач</div>
-    <div class="hh-sub">Кто кому что поручил</div>
+    <div class="hh-sub">Тапни чтобы раскрыть</div>
   </div>
   <div class="history-body" id="historyBody"></div>
 </div>
 
-<!-- 3D Scene -->
+<!-- Scene -->
 <div id="scene-wrap">
-  <canvas class="stars-canvas" id="starsCanvas"></canvas>
-  <svg id="lines-svg"></svg>
-  <div id="scene">
-    <!-- Agents rendered by JS -->
-  </div>
+  <canvas id="lines-canvas"></canvas>
+  <div id="scene"></div>
 
   <div class="header">
     <a class="back-btn" href="/">←</a>
     <div>
       <div class="header-title">🤖 Архитектура агентов</div>
-      <div class="header-sub">18 агентов · Тапни для информации</div>
+      <div class="header-sub">18 агентов · Тащи для поворота · Тапни для инфо</div>
     </div>
   </div>
 
   <div class="legend">
-    <div class="legend-item" style="color:#7c5cfc"><span class="legend-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#7c5cfc;box-shadow:0 0 6px #7c5cfc"></span> Ядро</div>
-    <div class="legend-item" style="color:#3b82f6"><span class="legend-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3b82f6;box-shadow:0 0 6px #3b82f6"></span> Исполнители</div>
-    <div class="legend-item" style="color:#10b981"><span class="legend-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981"></span> Контроль</div>
-    <div class="legend-item" style="color:#f59e0b"><span class="legend-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b;box-shadow:0 0 6px #f59e0b"></span> Результат</div>
-    <div class="legend-item" style="color:#ef4444"><span class="legend-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ef4444;box-shadow:0 0 6px #ef4444"></span> Поддержка</div>
+    <div class="legend-item" style="color:#7c5cfc"><span class="legend-dot" style="color:#7c5cfc"></span> Ядро</div>
+    <div class="legend-item" style="color:#3b82f6"><span class="legend-dot" style="color:#3b82f6"></span> Исполнители</div>
+    <div class="legend-item" style="color:#10b981"><span class="legend-dot" style="color:#10b981"></span> Контроль</div>
+    <div class="legend-item" style="color:#f59e0b"><span class="legend-dot" style="color:#f59e0b"></span> Результат</div>
+    <div class="legend-item" style="color:#ef4444"><span class="legend-dot" style="color:#ef4444"></span> Поддержка</div>
   </div>
 
   <div class="hint" id="hint">👆 Тапни на агента</div>
@@ -276,157 +203,51 @@ const AGENTS = [
   { id:'cost-tracker', label:'Cost Tracker', icon:'💰', desc:'Мониторинг расхода токенов', group:'support', color:'#fdcb6e', pos:[-3,2.5,3], conns:['delegator-feed'] },
   { id:'health-monitor', label:'Health',icon:'🩺', desc:'Проверка живых агентов, профилей, API', group:'support', color:'#55efc4', pos:[-3,-2.5,3], conns:['default-feed'] },
 ];
-
 const GROUP_NAMES = { core:'Ядро пайплайна', worker:'Исполнители', qa:'Контроль качества', output:'Вывод', support:'Поддержка' };
 
-// ====== PROJECT 3D → SCREEN COORDS ======
-let sceneWidth, sceneHeight;
-function getSceneSize() {
-  const wrap = document.getElementById('scene-wrap');
-  sceneWidth = wrap.clientWidth;
-  sceneHeight = wrap.clientHeight;
-}
-getSceneSize();
-window.addEventListener('resize', getSceneSize);
+// ====== SCENE STATE ======
+let W, H;
+function getSceneSize(){const w=document.getElementById('scene-wrap');W=w.clientWidth;H=w.clientHeight}
+getSceneSize(); window.addEventListener('resize',()=>{getSceneSize();renderAll();updateLines()});
 
-// The visual space: X from -8 to 10, Y from -4.5 to 4, Z from -3 to 3
-// Scale: map this to the viewport
-const VIEW_W = 18; // total width units
-const VIEW_H = 9;  // total height units
-const VIEW_SCALE_X = () => sceneWidth / VIEW_W;
-const VIEW_SCALE_Y = () => sceneHeight / VIEW_H;
-const VIEW_CENTER_X = 1; // center of scene X
-const VIEW_CENTER_Y = 0; // center of scene Y
+// 3D rotation
+let rotX = 0.15, rotY = 0;
+let targetRotX = 0.15, targetRotY = 0;
 
-function worldToScreen(wx, wy, wz) {
-  const sx = (wx - VIEW_CENTER_X) * VIEW_SCALE_X() + sceneWidth/2;
-  const sy = (wy - VIEW_CENTER_Y) * VIEW_SCALE_Y() + sceneHeight/2;
-  // Z affects size and position slightly (parallax)
-  const zFactor = 1 + wz * 0.03; // subtle
-  return { x: sx, y: sy, z: zFactor };
-}
+// ====== TRUE 3D PROJECTION ======
+function project3D(x, y, z) {
+  const rx = targetRotX, ry = targetRotY;
+  // Rotate Y
+  let x1 = x * Math.cos(ry) - z * Math.sin(ry);
+  let y1 = y;
+  let z1 = x * Math.sin(ry) + z * Math.cos(ry);
+  // Rotate X
+  let x2 = x1;
+  let y2 = y1 * Math.cos(rx) - z1 * Math.sin(rx);
+  let z2 = y1 * Math.sin(rx) + z1 * Math.cos(rx);
 
-// ====== CAMERA / ROTATION ======
-let rotX = 0.1, rotY = 0;
-let targetRotX = 0.1, targetRotY = 0;
-let isDragging = false;
-let dragStart = { x:0, y:0 };
-let dragLast = { x:0, y:0 };
-
-function updateCamera() {
-  const scene = document.getElementById('scene');
-  // Smooth interpolation
-  rotX += (targetRotX - rotX) * 0.08;
-  rotY += (targetRotY - rotY) * 0.08;
-  scene.style.transform = `rotateX(${rotX}rad) rotateY(${rotY}rad)`;
-  requestAnimationFrame(updateCamera);
-}
-updateCamera();
-
-// Drag to rotate
-const wrap = document.getElementById('scene-wrap');
-wrap.addEventListener('pointerdown', e => {
-  if (e.target.closest('.history-sidebar') || e.target.closest('.info-panel') || e.target.closest('.header') || e.target.closest('.legend')) return;
-  isDragging = true;
-  dragStart = { x: e.clientX, y: e.clientY };
-  dragLast = { x: e.clientX, y: e.clientY };
-  wrap.setPointerCapture(e.pointerId);
-});
-wrap.addEventListener('pointermove', e => {
-  if (!isDragging) return;
-  const dx = e.clientX - dragLast.x;
-  const dy = e.clientY - dragLast.y;
-  dragLast = { x: e.clientX, y: e.clientY };
-  targetRotY += dx * 0.005;
-  targetRotX += dy * 0.005;
-  targetRotX = Math.max(-0.3, Math.min(0.5, targetRotX));
-});
-wrap.addEventListener('pointerup', e => {
-  isDragging = false;
-  wrap.releasePointerCapture(e.pointerId);
-});
-
-// ====== DETECT CLICK ON AGENT ======
-let selectedAgent = null;
-let clickStartPos = { x:0, y:0 };
-let isClickDrag = false;
-
-wrap.addEventListener('pointerdown', e => {
-  clickStartPos = { x: e.clientX, y: e.clientY };
-  isClickDrag = false;
-});
-wrap.addEventListener('pointermove', e => {
-  if (Math.abs(e.clientX - clickStartPos.x) > 5 || Math.abs(e.clientY - clickStartPos.y) > 5) isClickDrag = true;
-});
-wrap.addEventListener('pointerup', e => {
-  if (isClickDrag) return;
-  // Check if tapped on an agent card
-  const el = document.elementFromPoint(e.clientX, e.clientY);
-  const card = el?.closest('.agent-card');
-  if (card) {
-    selectAgent(card.dataset.agentId);
-  } else if (!e.target.closest('.info-panel')) {
-    deselectAgent();
-  }
-});
-
-function selectAgent(id) {
-  const a = AGENTS.find(x => x.id === id);
-  if (!a) return;
-  selectedAgent = id;
-  // Update info panel
-  document.getElementById('ipIcon').textContent = a.icon;
-  document.getElementById('ipName').textContent = a.label;
-  document.getElementById('ipGroup').textContent = GROUP_NAMES[a.group] || a.group;
-  document.getElementById('ipDesc').textContent = a.desc;
-  const conns = a.conns.filter(c => !c.endsWith('-feed'));
-  const names = conns.map(c => c.replace('-rev','')).map(c => AGENTS.find(x=>x.id===c)).filter(Boolean).map(x=>x.icon+' '+x.label);
-  document.getElementById('ipConns').innerHTML = names.length ? '→ <span>'+names.join('</span>, <span>')+'</span>' : '';
-  document.getElementById('infoPanel').classList.add('visible');
-  // Highlight
-  document.querySelectorAll('.agent-card').forEach(c => c.classList.toggle('selected', c.dataset.agentId === id));
-  // Dim non-selected
-  document.querySelectorAll('.agent-card').forEach(c => {
-    if (c.dataset.agentId !== id) c.style.opacity = '0.4';
-  });
+  const perspective = 900;
+  const sc = perspective / (perspective + z2);
+  return { x: W/2 + x2 * sc, y: H/2 - y2 * sc, scale: sc };
 }
 
-function deselectAgent() {
-  selectedAgent = null;
-  document.getElementById('infoPanel').classList.remove('visible');
-  document.querySelectorAll('.agent-card').forEach(c => {
-    c.classList.remove('selected');
-    c.style.opacity = '1';
-  });
-}
+// ====== AGENT POSITIONS (interpolate rotation) ======
+let displayRotX = 0.15, displayRotY = 0;
 
-// ====== RENDER AGENTS ======
-function renderAgents() {
+function renderAll() {
   const scene = document.getElementById('scene');
   scene.innerHTML = '';
 
   AGENTS.forEach(a => {
-    const s = worldToScreen(a.pos[0], a.pos[1], a.pos[2]);
-    // Z factor: shift based on Z depth
-    const zShift = a.pos[2] * 1.2;
     const div = document.createElement('div');
     div.className = 'agent-card';
     div.dataset.agentId = a.id;
-    const scale = s.z;
-    // Adjust for mobile
+    div.style.setProperty('--color', a.color);
     const avSize = window.innerWidth <= 480 ? 50 : 62;
-    div.style.cssText = `
-      left:${s.x}px; top:${s.y}px;
-      transform:translate(-50%,-50%) scale(${scale});
-      z-index:${Math.round(a.pos[2] * 10 + 50)};
-    `;
-
+    div.style.zIndex = Math.round(a.pos[2] * 10 + 50);
     div.innerHTML = `
       <div class="agent-avatar" style="
-        --accent:${a.color};
-        --accent-shadow:${a.color}44;
         background:radial-gradient(circle at 35% 30%, ${lighten(a.color,25)} 0%, ${a.color} 60%, ${darken(a.color,20)} 100%);
-        box-shadow:0 0 20px ${a.color}33, 0 4px 16px rgba(0,0,0,.3);
         width:${avSize}px;height:${avSize}px;font-size:${Math.round(avSize*0.48)}px;
       ">
         <div class="glow-ring"></div>
@@ -436,153 +257,282 @@ function renderAgents() {
     `;
     scene.appendChild(div);
   });
+  drawStars();
+}
+renderAll();
 
-  renderLines();
-  renderStars();
+// ====== UPDATE POSITIONS (every frame) ======
+function updatePositions() {
+  // Smooth rotation
+  displayRotX += (targetRotX - displayRotX) * 0.08;
+  displayRotY += (targetRotY - displayRotY) * 0.08;
+
+  const cards = document.querySelectorAll('.agent-card');
+  const t = Date.now() / 1000;
+
+  AGENTS.forEach((a, i) => {
+    const card = cards[i];
+    if (!card) return;
+    // Apply current rotation to 3D point
+    const rx = displayRotX, ry = displayRotY;
+    let x1 = a.pos[0] * Math.cos(ry) - a.pos[2] * Math.sin(ry);
+    let y1 = a.pos[1];
+    let z1 = a.pos[0] * Math.sin(ry) + a.pos[2] * Math.cos(ry);
+    let x2 = x1;
+    let y2 = y1 * Math.cos(rx) - z1 * Math.sin(rx);
+    let z2 = y1 * Math.sin(rx) + z1 * Math.cos(rx);
+
+    const perspective = 900;
+    const sc = perspective / (perspective + z2);
+    const sx = W/2 + x2 * sc;
+    const sy = H/2 - y2 * sc;
+    const float = Math.sin(t * 0.4 + i * 0.7) * 3;
+
+    card.style.transform = `translate(-50%, calc(-50% + ${float}px)) translate(${sx}px, ${sy}px) translate(0, 0) scale(${sc})`;
+    card.style.left = '0';
+    card.style.top = '0';
+    card.dataset.curX = sx;
+    card.dataset.curY = sy;
+  });
 }
 
-// ====== SVG LINES ======
-function renderLines() {
-  const svg = document.getElementById('lines-svg');
-  const w = sceneWidth, h = sceneHeight;
-  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
-  svg.innerHTML = '';
+// ====== LINES (canvas, redrawn every frame) ======
+let lineCanvas, lineCtx;
+function initLines() {
+  lineCanvas = document.getElementById('lines-canvas');
+  lineCtx = lineCanvas.getContext('2d');
+}
+initLines();
 
-  const getPos = (id) => {
-    const a = AGENTS.find(x => x.id === id);
-    if (!a) return null;
-    return worldToScreen(a.pos[0], a.pos[1], a.pos[2]);
-  };
+function updateLines() {
+  const c = lineCanvas, ctx = lineCtx;
+  c.width = W; c.height = H;
+  ctx.clearRect(0, 0, W, H);
 
   AGENTS.forEach(a => {
     a.conns.forEach(t => {
       let tid = t, dashed = false;
       if (t.endsWith('-rev')) { tid = t.replace('-rev',''); dashed = true; }
       if (t.endsWith('-feed')) { tid = t.replace('-feed',''); dashed = true; }
-      const pA = getPos(a.id), pB = getPos(tid);
-      if (!pA || !pB) return;
+      const from = AGENTS.find(x => x.id === a.id);
+      const to = AGENTS.find(x => x.id === tid);
+      if (!from || !to) return;
 
-      // Curve via midpoint
+      const pA = project3D(from.pos[0], from.pos[1], from.pos[2]);
+      const pB = project3D(to.pos[0], to.pos[1], to.pos[2]);
+      const zAvg = (from.pos[2] + to.pos[2]) / 2;
+
+      ctx.beginPath();
+      // Curve
       const mx = (pA.x + pB.x) / 2;
-      const my = (pA.y + pB.y) / 2 - 20;
-      const d = `M${pA.x},${pA.y} Q${mx},${my} ${pB.x},${pB.y}`;
-
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', d);
-      path.setAttribute('stroke', a.color);
-      path.setAttribute('stroke-opacity', dashed ? '0.2' : '0.3');
+      const my = (pA.y + pB.y) / 2 - 15 * Math.min(pA.scale, pB.scale);
+      ctx.moveTo(pA.x, pA.y);
+      ctx.quadraticCurveTo(mx, my, pB.x, pB.y);
+      ctx.strokeStyle = a.color;
+      ctx.globalAlpha = dashed ? 0.15 : 0.25;
+      ctx.lineWidth = 1.2 * Math.min(pA.scale, pB.scale);
       if (dashed) {
-        path.setAttribute('stroke-dasharray', '5,5');
-        path.setAttribute('stroke-dashoffset', '3');
+        ctx.setLineDash([4, 4]);
+        ctx.lineDashOffset = Date.now() / 100;
+      } else {
+        ctx.setLineDash([]);
       }
-      svg.appendChild(path);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.setLineDash([]);
     });
   });
 }
 
-// ====== STARS BACKGROUND ======
-function renderStars() {
-  const canvas = document.getElementById('starsCanvas');
-  const ctx = canvas.getContext('2d');
-  canvas.width = sceneWidth;
-  canvas.height = sceneHeight;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  for (let i = 0; i < 200; i++) {
-    const x = Math.random() * canvas.width;
-    const y = Math.random() * canvas.height;
-    const r = Math.random() * 1.2 + 0.3;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(136,136,170,${Math.random() * 0.3 + 0.1})`;
+// ====== STARS ======
+function drawStars() {
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  for(let i=0;i<200;i++){
+    const x=Math.random()*W, y=Math.random()*H, r=Math.random()*1.2+0.3;
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(136,136,170,${Math.random()*0.3+0.1})`;
     ctx.fill();
   }
+  // Create img element and set as background
+  const img = new Image();
+  img.src = c.toDataURL();
+  img.onload = () => {
+    document.getElementById('scene-wrap').style.backgroundImage = `url(${img.src})`;
+    document.getElementById('scene-wrap').style.backgroundSize = 'cover';
+  };
 }
 
-// ====== COLOR HELPERS ======
-function lighten(hex, pct) {
-  const n = parseInt(hex.slice(1), 16);
-  const r = Math.min(255, (n>>16) + pct);
-  const g = Math.min(255, ((n>>8)&0xff) + pct);
-  const b = Math.min(255, (n&0xff) + pct);
-  return `#${((r<<16)|(g<<8)|b).toString(16).padStart(6,'0')}`;
-}
-function darken(hex, pct) {
-  const n = parseInt(hex.slice(1), 16);
-  const r = Math.max(0, (n>>16) - pct);
-  const g = Math.max(0, ((n>>8)&0xff) - pct);
-  const b = Math.max(0, (n&0xff) - pct);
-  return `#${((r<<16)|(g<<8)|b).toString(16).padStart(6,'0')}`;
-}
+// ====== INPUT HANDLING ======
+let isDragging = false;
+let dragStart = {x:0,y:0};
+let dragLast = {x:0,y:0};
+let clickStart = {x:0,y:0};
+let wasDragged = false;
 
-// ====== FLOATING ANIMATION ======
-function animateFloats() {
-  const cards = document.querySelectorAll('.agent-card');
-  const t = Date.now() / 1000;
-  cards.forEach((card, i) => {
-    const id = card.dataset.agentId;
-    const a = AGENTS.find(x => x.id === id);
-    if (!a) return;
-    const s = worldToScreen(a.pos[0], a.pos[1], a.pos[2]);
-    const floatY = Math.sin(t * 0.4 + i * 0.7) * 3;
-    const scale = s.z;
-    card.style.transform = `translate(-50%, calc(-50% + ${floatY}px)) scale(${scale})`;
+const wrap = document.getElementById('scene-wrap');
+
+wrap.addEventListener('pointerdown', e => {
+  if (e.target.closest('.info-panel') || e.target.closest('.header') || e.target.closest('.legend')) return;
+  isDragging = true; wasDragged = false;
+  dragStart = {x:e.clientX, y:e.clientY};
+  dragLast = {x:e.clientX, y:e.clientY};
+  clickStart = {x:e.clientX, y:e.clientY};
+  wrap.setPointerCapture(e.pointerId);
+});
+wrap.addEventListener('pointermove', e => {
+  if (!isDragging) return;
+  const dx = e.clientX - dragLast.x;
+  const dy = e.clientY - dragLast.y;
+  dragLast = {x:e.clientX, y:e.clientY};
+  if(Math.abs(e.clientX - clickStart.x) > 4 || Math.abs(e.clientY - clickStart.y) > 4) wasDragged = true;
+  targetRotY += dx * 0.004;
+  targetRotX += dy * 0.004;
+  targetRotX = Math.max(-0.3, Math.min(0.5, targetRotX));
+});
+wrap.addEventListener('pointerup', e => {
+  isDragging = false;
+  wrap.releasePointerCapture(e.pointerId);
+  if (!wasDragged) {
+    // Click — check if hitting an agent
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const card = el?.closest('.agent-card');
+    if (card) selectAgent(card.dataset.agentId);
+    else deselectAgent();
+  }
+});
+
+// ====== SELECT / DESELECT ======
+function selectAgent(id) {
+  const a = AGENTS.find(x => x.id === id);
+  if (!a) return;
+  document.getElementById('ipIcon').textContent = a.icon;
+  document.getElementById('ipName').textContent = a.label;
+  document.getElementById('ipGroup').textContent = GROUP_NAMES[a.group] || a.group;
+  document.getElementById('ipDesc').textContent = a.desc;
+  const conns = a.conns.filter(c => !c.endsWith('-feed'));
+  const names = conns.map(c => c.replace('-rev','')).map(c => AGENTS.find(x=>x.id===c)).filter(Boolean).map(x => x.icon+' '+x.label);
+  document.getElementById('ipConns').innerHTML = names.length ? '→ <span>'+names.join('</span>, <span>')+'</span>' : '';
+  document.getElementById('infoPanel').classList.add('visible');
+  document.querySelectorAll('.agent-card').forEach(c => {
+    c.classList.toggle('selected', c.dataset.agentId === id);
+    if (c.dataset.agentId !== id) c.style.opacity = '0.35';
   });
-  requestAnimationFrame(animateFloats);
+}
+function deselectAgent() {
+  document.getElementById('infoPanel').classList.remove('visible');
+  document.querySelectorAll('.agent-card').forEach(c => {
+    c.classList.remove('selected'); c.style.opacity = '1';
+  });
 }
 
-// ====== HISTORY ======
-const HISTORY = [
-  { time:'10:15', from:'translator', to:'planner', task:'Разбить задачу на шаги: «сделать чат-бота для Telegram»' },
-  { time:'10:17', from:'planner', to:'analyst', task:'Проверить план из 7 шагов на полноту и логику' },
-  { time:'10:19', from:'analyst', to:'delegator', task:'План ✅. Распределить задачи между исполнителями' },
-  { time:'10:22', from:'delegator', to:'coder', task:'Написать FastAPI бэкенд с командами /start /help' },
-  { time:'10:22', from:'delegator', to:'designer', task:'Сверстать приветственное сообщение с кнопками' },
-  { time:'10:22', from:'delegator', to:'data-analyst', task:'Подготовить данные для стартового набора команд' },
-  { time:'10:25', from:'coder', to:'tester', task:'Проверить код: импорты, типы, ответы на запросы' },
-  { time:'10:26', from:'tester', to:'coder', task:'❌ Ошибка: missing import для aiogram. Исправь.' },
-  { time:'10:27', from:'coder', to:'tester', task:'Исправлено. Повторная проверка.' },
-  { time:'10:28', from:'tester', to:'reviewer', task:'✅ Код ок. Тесты пройдены.' },
-  { time:'10:29', from:'designer', to:'reviewer', task:'✅ UI-макет готов. Кнопки, цвета, приветствие.' },
-  { time:'10:30', from:'reviewer', to:'analyst', task:'Всё готово. Проверь результат целиком.' },
-  { time:'10:31', from:'analyst', to:'reporter', task:'✅ Результат соответствует плану. Формируй отчёт.' },
-  { time:'10:32', from:'reporter', to:'default', task:'Финальный отчёт готов к отправке пользователю.' },
-  { time:'10:33', from:'default', to:'☀️ Пользователь', task:'Чат-бот готов! 🚀' },
+// ====== HISTORY (collapsible groups) ======
+const HISTORY_GROUPS = [{
+  id:'chatbot', time:'10:15–10:33', title:'🤖 Создание Telegram чат-бота', count:15, items:[
+    {time:'10:15', from:'translator', to:'planner', task:'Разбить задачу на шаги'},
+    {time:'10:17', from:'planner', to:'analyst', task:'Проверить план из 7 шагов на полноту'},
+    {time:'10:19', from:'analyst', to:'delegator', task:'План ✅. Распределить задачи'},
+    {time:'10:22', from:'delegator', to:'coder', task:'FastAPI бэкенд: /start, /help'},
+    {time:'10:22', from:'delegator', to:'designer', task:'UI: приветствие, кнопки'},
+    {time:'10:22', from:'delegator', to:'data-analyst', task:'Данные для стартового набора'},
+    {time:'10:25', from:'coder', to:'tester', task:'Проверить импорты, типы, ответы'},
+    {time:'10:26', from:'tester', to:'coder', task:'❌ missing import aiogram. Исправь.'},
+    {time:'10:27', from:'coder', to:'tester', task:'Исправлено. Повторная проверка.'},
+    {time:'10:28', from:'tester', to:'reviewer', task:'✅ Код ок.'},
+    {time:'10:29', from:'designer', to:'reviewer', task:'✅ UI-макет готов.'},
+    {time:'10:30', from:'reviewer', to:'analyst', task:'Проверь результат целиком.'},
+    {time:'10:31', from:'analyst', to:'reporter', task:'✅ Всё ок. Формируй отчёт.'},
+    {time:'10:32', from:'reporter', to:'default', task:'Финальный отчёт готов.'},
+    {time:'10:33', from:'default', to:'☀️ Пользователь', task:'Чат-бот готов! 🚀'},
+  ]},{
+  id:'backtest', time:'14:00–14:18', title:'📊 Настройка бэктестера', count:9, items:[
+    {time:'14:00', from:'translator', to:'planner', task:'Описание стратегии → план'},
+    {time:'14:02', from:'planner', to:'analyst', task:'Проверить логику стратегии'},
+    {time:'14:04', from:'analyst', to:'delegator', task:'План ок. Делегируй.'},
+    {time:'14:06', from:'delegator', to:'coder', task:'Написать RSI-backtester на Python'},
+    {time:'14:08', from:'delegator', to:'data-analyst', task:'Подготовить исторические свечи'},
+    {time:'14:12', from:'coder', to:'tester', task:'Проверить расчёты RSI'},
+    {time:'14:14', from:'tester', to:'coder', task:'❌ RSI период не совпадает'},
+    {time:'14:16', from:'coder', to:'tester', task:'Исправил. Перепроверь.'},
+    {time:'14:18', from:'tester', to:'reviewer', task:'✅ Расчёты верные.'},
+  ]},{
+  id:'health', time:'Ежечасно', title:'🩺 Авто-проверка агентов', count:6, items:[
+    {time:'15:00', from:'health-monitor', to:'default', task:'Проверка всех 18 агентов'},
+    {time:'15:00', from:'health-monitor', to:'default', task:'✅ 17 OK, 1 warn (default — в порядке)'},
+  ]},
 ];
 
 function renderHistory() {
   const body = document.getElementById('historyBody');
   body.innerHTML = '';
-  HISTORY.forEach(item => {
-    const from = AGENTS.find(a => a.id === item.from);
-    const to = AGENTS.find(a => a.id === item.to);
-    if (!from || !to) return;
+  HISTORY_GROUPS.forEach(g => {
     const div = document.createElement('div');
-    div.className = 'history-item';
+    div.className = 'history-group';
+    div.id = 'hg-'+g.id;
+    const agentIds = [...new Set(g.items.flatMap(i => [i.from, i.to]).filter(x => x !== '☀️ Пользователь' && AGENTS.find(a => a.id === x)))];
+    const colors = agentIds.slice(0,3).map(id => { const a = AGENTS.find(x=>x.id===id); return a ? a.color : '#7c5cfc'; });
+    const avatars = agentIds.slice(0,3).map(id => { const a = AGENTS.find(x=>x.id===id); return a ? a.icon : ''; });
     div.innerHTML = `
-      <div class="hi-time">${item.time}</div>
-      <div class="hi-content">
-        <div class="hi-flow">
-          <span class="hi-from" style="background:${from.color}33;color:${from.color}">${from.icon} ${from.label}</span>
-          <span class="hi-arrow">→</span>
-          <span class="hi-to" style="background:${to.color}33;color:${to.color}">${to.icon} ${to.label}</span>
+      <div class="hg-header" onclick="toggleHistory('${g.id}')">
+        <div class="hg-time">${g.time}</div>
+        <div class="hg-title">${g.title}</div>
+        <div style="display:flex;gap:1px;flex-shrink:0">
+          ${avatars.map((ic,i) => `<span style="font-size:10px;border:1px solid ${colors[i]}33;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;background:${colors[i]}15">${ic}</span>`).join('')}
         </div>
-        <div class="hi-task">${item.task}</div>
+        <span class="hg-count">${g.count}</span>
+        <span class="hg-toggle">▼</span>
+      </div>
+      <div class="hg-body" id="hgb-${g.id}">
+        ${g.items.map(item => {
+          const from = AGENTS.find(a => a.id === item.from);
+          const to = AGENTS.find(a => a.id === item.to);
+          if (!from || !to) return '';
+          return `<div class="hg-item">
+            <div class="hgi-time">${item.time}</div>
+            <div class="hgi-desc"><span class="hgi-flow">
+              <span class="from" style="background:${from.color}33;color:${from.color}">${from.icon}</span>
+              <span class="hi-arrow">→</span>
+              <span class="to" style="background:${to.color}33;color:${to.color}">${to.icon}</span>
+            </span>${item.task}</div>
+          </div>`;
+        }).join('')}
       </div>
     `;
     body.appendChild(div);
   });
 }
+window.toggleHistory = function(id) {
+  const g = document.getElementById('hg-'+id);
+  if (g) g.classList.toggle('open');
+};
+renderHistory();
 
-// ====== RESIZE HANDLER ======
+// ====== COLOR HELPERS ======
+function lighten(hex, pct) {
+  const n = parseInt(hex.slice(1),16);
+  return `#${(Math.min(255,(n>>16)+pct)<<16|Math.min(255,((n>>8)&0xff)+pct)<<8|Math.min(255,(n&0xff)+pct)).toString(16).padStart(6,'0')}`;
+}
+function darken(hex, pct) {
+  const n = parseInt(hex.slice(1),16);
+  return `#${(Math.max(0,(n>>16)-pct)<<16|Math.max(0,((n>>8)&0xff)-pct)<<8|Math.max(0,(n&0xff)-pct)).toString(16).padStart(6,'0')}`;
+}
+
+// ====== ANIMATION LOOP ======
+function animate() {
+  updatePositions();
+  updateLines();
+  requestAnimationFrame(animate);
+}
+animate();
+
+// ====== RESIZE ======
 window.addEventListener('resize', () => {
   getSceneSize();
-  renderAgents();
+  // Re-render stars on resize (debounced)
+  clearTimeout(window._starTimer);
+  window._starTimer = setTimeout(drawStars, 200);
 });
-
-// ====== INIT ======
-renderAgents();
-renderHistory();
-animateFloats();
 </script>
 </body>
 </html>
