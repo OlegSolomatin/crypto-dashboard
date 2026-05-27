@@ -55,10 +55,12 @@ body{background:#08081c;overflow:hidden;font-family:-apple-system,BlinkMacSystem
 #scene-wrap{flex:1;height:100dvh;overflow:hidden;position:relative}
 #scene{width:100%;height:100%;position:absolute;top:0;left:0}
 #lines-canvas{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:2}
+#star-canvas{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1}
 
 .agent-card{
   position:absolute;cursor:pointer;user-select:none;
   -webkit-tap-highlight-color:transparent;
+  transition:opacity .3s;
   transform-origin:center center;
   will-change:transform;
 }
@@ -145,6 +147,7 @@ body{background:#08081c;overflow:hidden;font-family:-apple-system,BlinkMacSystem
 
 <!-- Scene -->
 <div id="scene-wrap">
+  <canvas id="star-canvas"></canvas>
   <canvas id="lines-canvas"></canvas>
   <div id="scene"></div>
 
@@ -265,9 +268,7 @@ updatePositions();
 
 // ====== UPDATE POSITIONS (every frame) ======
 function updatePositions() {
-  // Auto-rotation (only Y axis, X is user-controlled)
   if (autoRotate) targetRotY += 0.002;
-
   // Smooth rotation
   displayRotX += (targetRotX - displayRotX) * 0.08;
   displayRotY += (targetRotY - displayRotY) * 0.08;
@@ -287,11 +288,12 @@ function updatePositions() {
     let y2 = y1 * Math.cos(rx) - z1 * Math.sin(rx);
     let z2 = y1 * Math.sin(rx) + z1 * Math.cos(rx);
 
-    // Depth of field: blur + opacity based on z-distance
     const blurAmt = Math.max(0, (z2 - 2) * 0.4);
     card.style.filter = blurAmt > 0 ? `blur(${blurAmt}px)` : 'none';
-    const op = Math.max(0.4, Math.min(1, 1 - (z2 + 5) * 0.03));
-    card.style.opacity = op;
+    if (!selectedAgentId) {
+      const op = Math.max(0.4, Math.min(1, 1 - (z2 + 5) * 0.03));
+      card.style.opacity = op;
+    }
 
     const perspective = 900;
     const sc = perspective / (perspective + z2);
@@ -333,41 +335,39 @@ function updateLines() {
       const pB = project3D(to.pos[0], to.pos[1], to.pos[2]);
       const zAvg = (from.pos[2] + to.pos[2]) / 2;
 
-      // Pulse effect on line width
-      const pulse = 0.85 + 0.15 * Math.sin(Date.now() / 300);
-      const baseWidth = 1.2 * Math.min(pA.scale, pB.scale);
-      const lineW = baseWidth * pulse;
-
-      // Gradient stroke
+      ctx.beginPath();
+      // Curve
       const mx = (pA.x + pB.x) / 2;
       const my = (pA.y + pB.y) / 2 - 15 * Math.min(pA.scale, pB.scale);
+      const pulse = 0.85 + 0.15 * Math.sin(Date.now() / 300);
 
-      // Glow layer (thick, semi-transparent)
+      // Glow layer
       ctx.beginPath();
       ctx.moveTo(pA.x, pA.y);
       ctx.quadraticCurveTo(mx, my, pB.x, pB.y);
       ctx.strokeStyle = a.color;
       ctx.globalAlpha = 0.08;
-      ctx.lineWidth = lineW * 3;
-      if (dashed) { ctx.setLineDash([4, 4]); ctx.lineDashOffset = Date.now() / 100; }
-      else { ctx.setLineDash([]); }
+      ctx.lineWidth = 1.2 * 3 * Math.min(pA.scale, pB.scale) * pulse;
+      if (dashed) ctx.setLineDash([4, 4]);
       ctx.stroke();
 
-      // Main line with gradient
+      // Main gradient line
       const grad = ctx.createLinearGradient(pA.x, pA.y, pB.x, pB.y);
       grad.addColorStop(0, from.color);
       grad.addColorStop(1, to.color);
-
       ctx.beginPath();
       ctx.moveTo(pA.x, pA.y);
       ctx.quadraticCurveTo(mx, my, pB.x, pB.y);
       ctx.strokeStyle = grad;
       ctx.globalAlpha = dashed ? 0.15 : 0.25;
-      ctx.lineWidth = lineW;
-      if (dashed) { ctx.setLineDash([4, 4]); ctx.lineDashOffset = Date.now() / 100; }
-      else { ctx.setLineDash([]); }
+      ctx.lineWidth = 1.2 * Math.min(pA.scale, pB.scale) * pulse;
+      if (dashed) {
+        ctx.setLineDash([4, 4]);
+        ctx.lineDashOffset = Date.now() / 100;
+      } else {
+        ctx.setLineDash([]);
+      }
       ctx.stroke();
-
       ctx.globalAlpha = 1;
       ctx.setLineDash([]);
     });
@@ -376,7 +376,14 @@ function updateLines() {
 
 // ====== STARS (animated) ======
 let starPositions = [];
+let starCanvas, starCtx;
+
 function initStars() {
+  starCanvas = document.getElementById('star-canvas');
+  if (!starCanvas) return;
+  starCtx = starCanvas.getContext('2d');
+  starCanvas.width = W;
+  starCanvas.height = H;
   starPositions = [];
   for (let i = 0; i < 200; i++) {
     starPositions.push({
@@ -388,38 +395,32 @@ function initStars() {
     });
   }
 }
-initStars();
 
 function updateStars() {
-  const c = lineCanvas;
-  if (!c) return;
-  const ctx = lineCtx;
-  starPositions.forEach(s => {
-    s.y -= s.speed;
-    if (s.y < -5) { s.y = H + 5; s.x = Math.random() * W; }
-  });
-  // Draw on a separate overlay — skip here, draw in updateLines background
+  for (let i = 0; i < starPositions.length; i++) {
+    const s = starPositions[i];
+    s.y += s.speed;
+    if (s.y > H) {
+      s.y = -s.r;
+      s.x = Math.random() * W;
+    }
+  }
 }
 
-// Background star layer drawn over the scene-wrap
-let starCanvas = null;
 function drawStars() {
-  if (!starCanvas) {
-    starCanvas = document.createElement('canvas');
-    starCanvas.id = 'star-canvas';
-    starCanvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1';
-    document.getElementById('scene-wrap').insertBefore(starCanvas, document.getElementById('lines-canvas'));
+  if (!starCanvas || !starCtx) return;
+  starCtx.clearRect(0, 0, W, H);
+  for (let i = 0; i < starPositions.length; i++) {
+    const s = starPositions[i];
+    starCtx.beginPath();
+    starCtx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    starCtx.fillStyle = `rgba(136,136,170,${s.alpha})`;
+    starCtx.fill();
   }
-  starCanvas.width = W; starCanvas.height = H;
-  const ctx = starCanvas.getContext('2d');
-  ctx.clearRect(0, 0, W, H);
-  starPositions.forEach(s => {
-    ctx.beginPath();
-    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(136,136,170,${s.alpha})`;
-    ctx.fill();
-  });
 }
+
+// Init stars immediately
+initStars();
 
 // ====== INPUT HANDLING ======
 let isDragging = false;
@@ -433,13 +434,12 @@ const wrap = document.getElementById('scene-wrap');
 wrap.addEventListener('pointerdown', e => {
   if (e.target.closest('.info-panel') || e.target.closest('.header') || e.target.closest('.legend')) return;
   isDragging = true; wasDragged = false;
+  autoRotate = false;
+  clearTimeout(autoRotateTimer);
   dragStart = {x:e.clientX, y:e.clientY};
   dragLast = {x:e.clientX, y:e.clientY};
   clickStart = {x:e.clientX, y:e.clientY};
   wrap.setPointerCapture(e.pointerId);
-  // Pause auto-rotation on interaction
-  autoRotate = false;
-  clearTimeout(autoRotateTimer);
 });
 wrap.addEventListener('pointermove', e => {
   if (!isDragging) return;
@@ -454,7 +454,6 @@ wrap.addEventListener('pointermove', e => {
 wrap.addEventListener('pointerup', e => {
   isDragging = false;
   wrap.releasePointerCapture(e.pointerId);
-  // Resume auto-rotation after 5s of inactivity
   autoRotateTimer = setTimeout(() => { autoRotate = true; }, 5000);
   if (!wasDragged) {
     // Click — check if hitting an agent
@@ -466,7 +465,10 @@ wrap.addEventListener('pointerup', e => {
 });
 
 // ====== SELECT / DESELECT ======
+let selectedAgentId = null;
+
 function selectAgent(id) {
+  selectedAgentId = id;
   const a = AGENTS.find(x => x.id === id);
   if (!a) return;
   document.getElementById('ipIcon').textContent = a.icon;
@@ -479,11 +481,15 @@ function selectAgent(id) {
   document.getElementById('infoPanel').classList.add('visible');
   document.querySelectorAll('.agent-card').forEach(c => {
     c.classList.toggle('selected', c.dataset.agentId === id);
+    if (c.dataset.agentId !== id) c.style.opacity = '0.35';
   });
 }
 function deselectAgent() {
+  selectedAgentId = null;
   document.getElementById('infoPanel').classList.remove('visible');
-  document.querySelectorAll('.agent-card').forEach(c => c.classList.remove('selected'));
+  document.querySelectorAll('.agent-card').forEach(c => {
+    c.classList.remove('selected'); c.style.opacity = '1';
+  });
 }
 
 // ====== HISTORY (collapsible groups) ======
@@ -563,13 +569,7 @@ function renderHistory() {
 }
 window.toggleHistory = function(id) {
   const g = document.getElementById('hg-'+id);
-  if (!g) return;
-  const isOpening = !g.classList.contains('open');
-  // Close all other groups
-  document.querySelectorAll('.history-group').forEach(el => {
-    if (el.id !== 'hg-'+id) el.classList.remove('open');
-  });
-  if (isOpening) g.classList.add('open');
+  if (g) g.classList.toggle('open');
 };
 renderHistory();
 
@@ -586,9 +586,9 @@ function darken(hex, pct) {
 // ====== ANIMATION LOOP ======
 function animate() {
   updatePositions();
+  updateLines();
   updateStars();
   drawStars();
-  updateLines();
   requestAnimationFrame(animate);
 }
 animate();
@@ -596,8 +596,9 @@ animate();
 // ====== RESIZE ======
 window.addEventListener('resize', () => {
   getSceneSize();
-  initStars();
-  drawStars();
+  // Re-init stars on resize (debounced)
+  clearTimeout(window._starTimer);
+  window._starTimer = setTimeout(initStars, 200);
 });
 </script>
 </body>
