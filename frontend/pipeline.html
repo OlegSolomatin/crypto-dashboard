@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>MOE — Архитектура агентов</title>
 <meta name="apple-mobile-web-app-title" content="MOE">
 <link rel="manifest" href="/manifest.json">
@@ -10,80 +10,30 @@
 <link rel="apple-touch-icon" href="/icon-light-180.png">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#08081c;overflow-x:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#e0e0f0;min-height:100vh;padding:12px}
-.container{max-width:900px;margin:0 auto}
+body{background:#08081c;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#e0e0f0;height:100dvh;width:100vw;display:flex}
 
-/* Header */
-.header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
-.back-btn{display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;background:rgba(15,15,46,.8);border:1px solid rgba(124,92,252,.2);color:#e0e0f0;text-decoration:none;font-size:18px;flex-shrink:0}
-.back-btn:hover{background:#14143a;border-color:#7c5cfc}
-.header-title{font-size:18px;font-weight:700}
-.header-sub{font-size:11px;color:#8888aa;margin-top:2px}
-
-/* Legend */
-.legend{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px;font-size:11px}
-.legend-item{display:flex;align-items:center;gap:6px;background:rgba(15,15,46,.6);padding:4px 10px;border-radius:8px;border:1px solid rgba(124,92,252,.1)}
-.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-
-/* Pipeline stages */
-.pipeline{display:flex;flex-direction:column;gap:24px;margin-bottom:24px}
-
-.stage-title{font-size:13px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px}
-.stage-title .badge{font-size:10px;padding:2px 8px;border-radius:6px;color:#fff}
-
-.agents-row{display:flex;flex-wrap:wrap;gap:10px}
-.agent-card{
-  background:rgba(15,15,46,.8);border:1px solid rgba(124,92,252,.12);
-  border-radius:14px;padding:14px 16px;cursor:pointer;
-  display:flex;align-items:center;gap:10px;
-  transition:all .2s;min-width:140px;flex:1 0 auto;max-width:200px;
-  user-select:none;-webkit-tap-highlight-color:transparent;
+/* History sidebar */
+.history-sidebar{
+  display:none;width:300px;min-width:300px;height:100dvh;
+  background:rgba(8,8,28,.95);border-right:1px solid rgba(124,92,252,.1);
+  z-index:20;flex-direction:column;overflow:hidden;
 }
-.agent-card:hover{background:#14143a;border-color:var(--color);transform:translateY(-2px)}
-.agent-card.selected{background:#14143a;border-color:var(--color);box-shadow:0 0 20px var(--color)33}
-.agent-avatar{
-  width:44px;height:44px;border-radius:50%;flex-shrink:0;
-  display:flex;align-items:center;justify-content:center;font-size:22px;
-  box-shadow:0 0 12px var(--color)33;
-}
-.agent-info{flex:1;min-width:0}
-.agent-name{font-size:13px;font-weight:700}
-.agent-desc{font-size:10px;color:#8888aa;margin-top:2px}
-.agent-conns{font-size:9px;color:#666;margin-top:2px}
-.agent-conns span{display:inline-block;margin-right:2px}
+.history-header{padding:16px 18px 10px;border-bottom:1px solid rgba(124,92,252,.08);flex-shrink:0}
+.history-header .hh-title{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
+.history-header .hh-sub{font-size:11px;color:#8888aa;margin-top:2px}
+.history-body{flex:1;overflow-y:auto;padding:8px 12px;scrollbar-width:thin;scrollbar-color:rgba(124,92,252,.15) transparent}
+.history-body::-webkit-scrollbar{width:4px}
+.history-body::-webkit-scrollbar-thumb{background:rgba(124,92,252,.2);border-radius:4px}
 
-/* Pipeline wrap for SVG layer */
-.pipeline-wrap{position:relative}
-.svg-layer{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5;overflow:visible}
-
-/* Connection arrows between rows */
-.arrow-row{display:flex;justify-content:center;padding:2px 0}
-.arrow-row svg{width:120px;height:24px}
-
-/* Info panel */
-.info-panel{
-  position:fixed;bottom:16px;left:16px;right:16px;z-index:10;
-  background:rgba(15,15,46,.95);border:1px solid rgba(124,92,252,.2);
-  border-radius:16px;padding:16px;max-width:500px;margin:0 auto;
-  transition:all .4s cubic-bezier(.4,0,.2,1);
-  opacity:0;transform:translateY(20px);pointer-events:none;
-}
-.info-panel.visible{opacity:1;transform:translateY(0);pointer-events:auto}
-.info-panel .ip-name{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px}
-.info-panel .ip-group{font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(124,92,252,.15);color:#7c5cfc;display:inline-block;margin-top:4px}
-.info-panel .ip-desc{font-size:12px;color:#8888aa;margin-top:6px;line-height:1.5}
-.info-panel .ip-conns{font-size:11px;color:#8888aa;margin-top:6px}
-.info-panel .ip-conns span{color:#10b981}
-
-/* History sidebar (desktop) */
-.history-section{margin-top:20px}
-.history-section h3{font-size:14px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+/* History group (collapsible) */
 .history-group{
   background:rgba(15,15,46,.6);border:1px solid rgba(124,92,252,.1);
-  border-radius:12px;margin-bottom:8px;overflow:hidden;cursor:pointer;
+  border-radius:12px;margin-bottom:8px;overflow:hidden;
+  animation:fadeSlide .4s ease both;cursor:pointer;
 }
+.history-group.open{border-color:rgba(124,92,252,.2)}
 .hg-header{
-  display:flex;align-items:center;gap:8px;padding:10px 14px;
+  display:flex;align-items:center;gap:8px;padding:10px 12px;
   transition:background .15s;user-select:none;
 }
 .hg-header:hover{background:rgba(124,92,252,.06)}
@@ -92,291 +42,457 @@ body{background:#08081c;overflow-x:hidden;font-family:-apple-system,BlinkMacSyst
 .hg-count{font-size:9px;color:#8888aa;background:rgba(124,92,252,.1);padding:2px 6px;border-radius:4px}
 .hg-toggle{color:#7c5cfc;font-size:10px;transition:transform .2s;flex-shrink:0}
 .history-group.open .hg-toggle{transform:rotate(180deg)}
-.hg-body{display:none;padding:8px 14px 12px;border-top:1px solid rgba(124,92,252,.06)}
+.hg-body{display:none;padding:0 12px 10px;border-top:1px solid rgba(124,92,252,.06);padding-top:8px}
 .history-group.open .hg-body{display:block}
-.hg-item{display:flex;gap:8px;padding:4px 0;font-size:11px}
+.hg-item{display:flex;gap:8px;padding:5px 0;font-size:11px;align-items:flex-start;animation:fadeSlide .3s ease both}
 .hg-item .hgi-time{font-size:9px;color:#666;width:30px;flex-shrink:0;padding-top:1px}
 .hg-item .hgi-desc{color:#aaa;line-height:1.4}
-.hgi-flow{display:inline-flex;align-items:center;gap:3px;margin-right:4px}
-.hgi-flow .from,.hgi-flow .to{font-weight:600;font-size:10px;padding:0 4px;border-radius:3px}
-.hgi-arrow{color:#555;font-size:8px}
+.hg-item .hgi-flow{display:inline-flex;align-items:center;gap:3px;margin-right:4px}
+.hg-item .hgi-flow .from,.hg-item .hgi-flow .to{font-weight:600;font-size:10px;padding:0 4px;border-radius:3px}
+.hg-item .hgi-arrow{color:#555;font-size:8px}
 
-/* Desktop layout */
-@media(min-width:769px){
-  body{padding:20px}
-  .pipeline{flex-direction:row;flex-wrap:wrap;align-items:flex-start}
-  .stage{flex:0 0 auto;margin-bottom:0;display:flex;flex-direction:column;align-items:center}
-  .agents-row{flex-direction:column;align-items:stretch}
-  .agent-card{max-width:220px}
-  .arrow-row{transform:rotate(-90deg);padding:10px 0}
-  .layout-row{display:flex;gap:24px;align-items:flex-start}
-  .main-content{flex:1}
-  .history-section{width:300px;flex-shrink:0;margin-top:0}
-}
+/* Scene */
+#scene-wrap{flex:1;height:100dvh;overflow:hidden;position:relative}
+#scene{width:100%;height:100%;position:absolute;top:0;left:0}
+#lines-canvas{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:2}
 
-@media(min-width:1024px){
-  .layout-row{display:flex;gap:24px;align-items:flex-start}
+.agent-card{
+  position:absolute;cursor:pointer;user-select:none;
+  -webkit-tap-highlight-color:transparent;
+  transition:opacity .3s;
+  transform-origin:center center;
+  will-change:transform;
 }
+.agent-card:hover .agent-avatar{transform:scale(1.08)}
+.agent-card.selected .agent-avatar{transform:scale(1.15)}
+.agent-avatar{
+  width:62px;height:62px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:30px;margin:0 auto;
+  position:relative;transition:transform .3s cubic-bezier(.4,0,.2,1),box-shadow .3s;
+  box-shadow:0 0 20px var(--color)33, 0 4px 16px rgba(0,0,0,.3);
+}
+.agent-avatar .glow-ring{
+  position:absolute;inset:-4px;border-radius:50%;
+  border:1px solid var(--color);opacity:0.15;
+}
+.agent-name{text-align:center;font-size:11px;font-weight:600;margin-top:5px;text-shadow:0 2px 8px rgba(0,0,0,.7);white-space:nowrap}
+
+/* Header */
+.header{
+  position:fixed;top:0;left:0;right:0;z-index:15;
+  display:flex;align-items:center;gap:12px;padding:12px 16px;
+  background:linear-gradient(180deg,rgba(8,8,28,.92) 0%,transparent 100%);
+  pointer-events:none;
+}
+.header>*{pointer-events:auto}
+.back-btn{
+  display:flex;align-items:center;justify-content:center;
+  width:38px;height:38px;border-radius:12px;
+  background:rgba(15,15,46,.8);border:1px solid rgba(124,92,252,.2);
+  color:#e0e0f0;text-decoration:none;font-size:18px;
+  transition:all .2s;flex-shrink:0;backdrop-filter:blur(4px);
+}
+.header-title{font-size:17px;font-weight:700;text-shadow:0 2px 8px rgba(0,0,0,.5)}
+.header-sub{font-size:11px;color:#8888aa;margin-top:1px}
+
+.legend{
+  position:fixed;top:70px;right:12px;z-index:15;
+  background:rgba(15,15,46,.85);border:1px solid rgba(124,92,252,.12);
+  border-radius:12px;padding:10px 12px;backdrop-filter:blur(4px);
+  font-size:10px;line-height:1.8;
+}
+.legend-item{display:flex;align-items:center;gap:6px}
+.legend-dot{display:inline-block;width:8px;height:8px;border-radius:50%;flex-shrink:0;box-shadow:0 0 6px currentColor}
+
+/* Info panel */
+.info-panel{
+  position:fixed;bottom:20px;left:50%;z-index:15;
+  background:rgba(15,15,46,.92);border:1px solid rgba(124,92,252,.2);
+  border-radius:16px;padding:14px 18px;
+  backdrop-filter:blur(8px);width:calc(100% - 32px);max-width:400px;
+  transition:all .4s cubic-bezier(.4,0,.2,1);
+  opacity:0;transform:translateX(-50%) translateY(20px);pointer-events:none;
+}
+.info-panel.visible{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+.info-panel .ip-name{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px}
+.info-panel .ip-group{font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(124,92,252,.15);color:#7c5cfc;display:inline-block;margin-top:4px}
+.info-panel .ip-desc{font-size:12px;color:#8888aa;margin-top:6px;line-height:1.5}
+.info-panel .ip-connections{font-size:11px;color:#8888aa;margin-top:6px}
+.info-panel .ip-connections span{color:#10b981}
+
+.hint{
+  position:fixed;bottom:90px;left:50%;transform:translateX(-50%);
+  z-index:5;font-size:11px;color:rgba(136,136,170,.3);text-align:center;
+  pointer-events:none;animation:hintFade 8s forwards;
+}
+@keyframes hintFade{0%,70%{opacity:1}100%{opacity:0}}
+@keyframes fadeSlide{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+@media(min-width:1024px){.history-sidebar{display:flex}}
+@media(max-width:480px){.agent-avatar{width:50px;height:50px;font-size:24px}.agent-name{font-size:10px}}
 </style>
 </head>
 <body>
-<div class="container">
 
-<!-- Header -->
-<div class="header">
-  <a class="back-btn" href="/">←</a>
-  <div>
-    <div class="header-title">🤖 Архитектура агентов</div>
-    <div class="header-sub">18 агентов · 5 уровней · Тапни для информации</div>
+<!-- History Sidebar -->
+<div class="history-sidebar">
+  <div class="history-header">
+    <div class="hh-title">📋 История задач</div>
+    <div class="hh-sub">Тапни чтобы раскрыть</div>
   </div>
+  <div class="history-body" id="historyBody"></div>
 </div>
 
-<!-- Legend -->
-<div class="legend">
-  <div class="legend-item"><span class="legend-dot" style="background:#7c5cfc;box-shadow:0 0 6px #7c5cfc"></span> Ядро</div>
-  <div class="legend-item"><span class="legend-dot" style="background:#3b82f6;box-shadow:0 0 6px #3b82f6"></span> Исполнители</div>
-  <div class="legend-item"><span class="legend-dot" style="background:#10b981;box-shadow:0 0 6px #10b981"></span> Контроль</div>
-  <div class="legend-item"><span class="legend-dot" style="background:#f59e0b;box-shadow:0 0 6px #f59e0b"></span> Результат</div>
-  <div class="legend-item"><span class="legend-dot" style="background:#ef4444;box-shadow:0 0 6px #ef4444"></span> Поддержка</div>
-</div>
+<!-- Scene -->
+<div id="scene-wrap">
+  <canvas id="lines-canvas"></canvas>
+  <canvas id="star-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1"></canvas>
+  <div id="scene"></div>
 
-<div class="layout-row">
-  <div class="main-content">
-    <div class="pipeline-wrap">
-      <div class="pipeline" id="pipeline"></div>
+  <div class="header">
+    <a class="back-btn" href="/">←</a>
+    <div>
+      <div class="header-title">🤖 Архитектура агентов</div>
+      <div class="header-sub">18 агентов · Тащи для поворота · Тапни для инфо</div>
     </div>
   </div>
 
-  <!-- History (desktop sidebar) -->
-  <div class="history-section" id="historySection">
-    <h3>📋 История задач</h3>
-    <div id="historyBody"></div>
+  <div class="legend">
+    <div class="legend-item" style="color:#7c5cfc"><span class="legend-dot" style="color:#7c5cfc"></span> Ядро</div>
+    <div class="legend-item" style="color:#3b82f6"><span class="legend-dot" style="color:#3b82f6"></span> Исполнители</div>
+    <div class="legend-item" style="color:#10b981"><span class="legend-dot" style="color:#10b981"></span> Контроль</div>
+    <div class="legend-item" style="color:#f59e0b"><span class="legend-dot" style="color:#f59e0b"></span> Результат</div>
+    <div class="legend-item" style="color:#ef4444"><span class="legend-dot" style="color:#ef4444"></span> Поддержка</div>
+  </div>
+
+  <div class="hint" id="hint">👆 Тапни на агента</div>
+
+  <div class="info-panel" id="infoPanel">
+    <div>
+      <div class="ip-name"><span id="ipIcon">🤖</span> <span id="ipName">agent</span></div>
+      <div class="ip-group" id="ipGroup">group</div>
+    </div>
+    <div class="ip-desc" id="ipDesc">Описание</div>
+    <div class="ip-connections" id="ipConns"></div>
   </div>
 </div>
 
-<!-- Info panel -->
-<div class="info-panel" id="infoPanel">
-  <div class="ip-name"><span id="ipIcon">🤖</span> <span id="ipName">agent</span></div>
-  <div class="ip-group" id="ipGroup">group</div>
-  <div class="ip-desc" id="ipDesc">Описание</div>
-  <div class="ip-conns" id="ipConns"></div>
-</div>
-
-</div><!-- container -->
-
 <script>
+// ====== AGENT DATA ======
 const AGENTS = [
-  { id:'translator',  label:'Translator',  icon:'🌐', desc:'Перевод и форматирование запросов', group:'core', color:'#7c5cfc', conns:['planner'] },
-  { id:'planner',     label:'Planner',     icon:'📋', desc:'Декомпозиция на атомарные шаги', group:'core', color:'#8b7cf7', conns:['analyst'] },
-  { id:'analyst',     label:'Analyst',     icon:'🧠', desc:'6 критериев оценки плана', group:'core', color:'#9b6ef0', conns:['delegator','reviewer-rev'] },
-  { id:'delegator',   label:'Delegator',   icon:'🎯', desc:'Распределение задач', group:'core', color:'#5b6abf', conns:['preloader','coder','designer','data-analyst','devops','trading-analyst'] },
+  { id:'translator',  label:'Translator',  icon:'🌐', desc:'Перевод и форматирование запросов на входе', group:'core', color:'#7c5cfc', pos:[-6,0,0], conns:['planner'] },
+  { id:'planner',     label:'Planner',     icon:'📋', desc:'Декомпозиция задачи на атомарные шаги', group:'core', color:'#8b7cf7', pos:[-4,0,0], conns:['analyst'] },
+  { id:'analyst',     label:'Analyst',     icon:'🧠', desc:'Глубокий анализ: 6 критериев оценки плана', group:'core', color:'#9b6ef0', pos:[-2,0,0], conns:['delegator','reviewer-rev'] },
+  { id:'delegator',   label:'Delegator',   icon:'🎯', desc:'Распределение задач между исполнителями', group:'core', color:'#5b6abf', pos:[0,0,0], conns:['preloader','coder','designer','data-analyst','devops','trading-analyst'] },
 
-  { id:'preloader',   label:'Preloader',   icon:'📥', desc:'Подготовка данных и контекста', group:'worker', color:'#e17055', conns:['reviewer'] },
-  { id:'coder',       label:'Coder',       icon:'💻', desc:'Написание кода Python, JS, C', group:'worker', color:'#0984e3', conns:['reviewer','tester'] },
-  { id:'designer',    label:'Designer',    icon:'🎨', desc:'UI/UX дизайн, HTML, CSS', group:'worker', color:'#e84393', conns:['reviewer'] },
-  { id:'data-analyst',label:'Data Analyst',icon:'📈', desc:'Анализ данных и метрик', group:'worker', color:'#00b894', conns:['reviewer'] },
-  { id:'devops',      label:'DevOps',      icon:'⚙️', desc:'CI/CD, инфраструктура', group:'worker', color:'#636e72', conns:['reviewer'] },
-  { id:'trading-analyst', label:'Trading', icon:'📊', desc:'Торговые сигналы', group:'worker', color:'#fdcb6e', conns:['reviewer'] },
+  { id:'preloader',   label:'Preloader',   icon:'📥', desc:'Подготовка данных и контекста перед работой', group:'worker', color:'#e17055', pos:[1.6,3.2,0], conns:['reviewer'] },
+  { id:'coder',       label:'Coder',       icon:'💻', desc:'Написание кода на Python, JS, C', group:'worker', color:'#0984e3', pos:[1.6,1.8,0], conns:['reviewer','tester'] },
+  { id:'designer',    label:'Designer',    icon:'🎨', desc:'UI/UX дизайн, HTML, CSS, SVG-графика', group:'worker', color:'#e84393', pos:[1.6,0.6,0], conns:['reviewer'] },
+  { id:'data-analyst',label:'Data Analyst',icon:'📈', desc:'Анализ данных, метрик и статистики', group:'worker', color:'#00b894', pos:[1.6,-0.6,0], conns:['reviewer'] },
+  { id:'devops',      label:'DevOps',      icon:'⚙️', desc:'Развёртывание, CI/CD, инфраструктура', group:'worker', color:'#636e72', pos:[1.6,-1.8,0], conns:['reviewer'] },
+  { id:'trading-analyst', label:'Trading An.', icon:'📊', desc:'Торговые сигналы и рыночный анализ', group:'worker', color:'#fdcb6e', pos:[1.6,-3.2,0], conns:['reviewer'] },
 
-  { id:'reviewer',    label:'Reviewer',    icon:'🔍', desc:'7 критериев QA-петли', group:'qa', color:'#00b894', conns:['analyst-rev','reporter'] },
-  { id:'tester',      label:'Tester',      icon:'🧪', desc:'Тестирование кода', group:'qa', color:'#55efc4', conns:['reviewer'] },
-  { id:'technical-writer', label:'Tech Writer', icon:'📖', desc:'Документация', group:'qa', color:'#74b9ff', conns:['reviewer'] },
-  { id:'security-auditor', label:'Security', icon:'🛡️', desc:'8 векторов безопасности', group:'qa', color:'#d63031', conns:['reviewer'] },
+  { id:'reviewer',    label:'Reviewer',    icon:'🔍', desc:'Контроль качества: 7 критериев, QA-петля', group:'qa', color:'#00b894', pos:[4.5,0,0], conns:['analyst-rev','reporter'] },
+  { id:'tester',      label:'Tester',      icon:'🧪', desc:'Тестирование кода: синтаксис, edge cases', group:'qa', color:'#55efc4', pos:[4.5,2.5,0], conns:['reviewer'] },
+  { id:'technical-writer', label:'Tech Writer', icon:'📖', desc:'Документация: README, API, changelog', group:'qa', color:'#74b9ff', pos:[4.5,-1.8,0], conns:['reviewer'] },
+  { id:'security-auditor', label:'Security', icon:'🛡️', desc:'8 векторов проверки безопасности', group:'qa', color:'#d63031', pos:[4.5,-3.5,0], conns:['reviewer'] },
 
-  { id:'reporter',    label:'Reporter',    icon:'📝', desc:'Финальный отчёт', group:'output', color:'#f59e0b', conns:['default'] },
-  { id:'default',     label:'Default',     icon:'🤖', desc:'Ответ пользователю', group:'output', color:'#dfe6e9', conns:[] },
+  { id:'reporter',    label:'Reporter',    icon:'📝', desc:'Финальное форматирование сводного отчёта', group:'output', color:'#f59e0b', pos:[7,0,0], conns:['default'] },
+  { id:'default',     label:'Default',     icon:'🤖', desc:'Главный агент — финальный ответ пользователю', group:'output', color:'#dfe6e9', pos:[9,0,0], conns:[] },
 
-  { id:'cost-tracker', label:'Cost', icon:'💰', desc:'Мониторинг токенов', group:'support', color:'#fdcb6e', conns:[] },
-  { id:'health-monitor', label:'Health', icon:'🩺', desc:'Проверка агентов', group:'support', color:'#55efc4', conns:[] },
+  { id:'cost-tracker', label:'Cost Tracker', icon:'💰', desc:'Мониторинг расхода токенов', group:'support', color:'#fdcb6e', pos:[-3,2.5,3], conns:['delegator-feed'] },
+  { id:'health-monitor', label:'Health',icon:'🩺', desc:'Проверка живых агентов, профилей, API', group:'support', color:'#55efc4', pos:[-3,-2.5,3], conns:['default-feed'] },
 ];
+const GROUP_NAMES = { core:'Ядро пайплайна', worker:'Исполнители', qa:'Контроль качества', output:'Вывод', support:'Поддержка' };
 
-const GROUP_ORDER = ['core','worker','qa','output','support'];
-const GROUP_LABELS = { core:'🔮 Ядро пайплайна', worker:'⚡ Исполнители', qa:'🔍 Контроль качества', output:'📤 Результат', support:'🔧 Поддержка' };
+// ====== SCENE STATE ======
+let W, H;
+function getSceneSize(){const w=document.getElementById('scene-wrap');W=w.clientWidth;H=w.clientHeight}
+getSceneSize(); window.addEventListener('resize',()=>{getSceneSize();renderAll();updateLines()});
 
-function lighten(hex,pct){const n=parseInt(hex.slice(1),16);return `#${(Math.min(255,(n>>16)+pct)<<16|Math.min(255,((n>>8)&0xff)+pct)<<8|Math.min(255,(n&0xff)+pct)).toString(16).padStart(6,'0')}`}
+// 3D rotation
+let rotX = 0.15, rotY = 0;
+let targetRotX = 0.15, targetRotY = 0;
+let autoRotate = true;
+let autoRotateTimer = null;
 
-function renderPipeline() {
-  const container = document.getElementById('pipeline');
-  container.innerHTML = '';
+// ====== TRUE 3D PROJECTION ======
+function project3D(x, y, z) {
+  const rx = displayRotX, ry = displayRotY;
+  // Rotate Y
+  let x1 = x * Math.cos(ry) - z * Math.sin(ry);
+  let y1 = y;
+  let z1 = x * Math.sin(ry) + z * Math.cos(ry);
+  // Rotate X
+  let x2 = x1;
+  let y2 = y1 * Math.cos(rx) - z1 * Math.sin(rx);
+  let z2 = y1 * Math.sin(rx) + z1 * Math.cos(rx);
 
-  GROUP_ORDER.forEach((g, gi) => {
-    const agents = AGENTS.filter(a => a.group === g);
-    if (!agents.length) return;
+  const perspective = 900;
+  const sc = perspective / (perspective + z2);
+  return { x: W/2 + x2 * sc, y: H/2 - y2 * sc, scale: sc };
+}
 
-    const stage = document.createElement('div');
-    stage.className = 'stage';
-    stage.style.cssText = 'flex:1;min-width:160px';
+// ====== AGENT POSITIONS (interpolate rotation) ======
+let displayRotX = 0.15, displayRotY = 0;
 
-    // Arrow from previous stage (except first)
-    let arrowHTML = '';
-    if (gi > 0) {
-      arrowHTML = `<div class="arrow-row"><svg viewBox="0 0 120 24"><path d="M10,12 L100,12" stroke="rgba(124,92,252,0.2)" stroke-width="2" fill="none"/><polygon points="110,12 100,6 100,18" fill="rgba(124,92,252,0.3)"/></svg></div>`;
-    }
+function renderAll() {
+  const scene = document.getElementById('scene');
+  scene.innerHTML = '';
 
-    let cardsHTML = '';
-    agents.forEach(a => {
-      const connText = a.conns
-        .filter(c => !c.endsWith('-rev') && !c.endsWith('-feed'))
-        .map(c => c.replace('-rev',''))
-        .map(c => { const t=AGENTS.find(x=>x.id===c); return t ? t.icon : '' })
-        .join('');
-
-      cardsHTML += `
-        <div class="agent-card" data-id="${a.id}" style="--color:${a.color}" onclick="selectAgent('${a.id}')">
-          <div class="agent-avatar" style="background:radial-gradient(circle at 35% 30%, ${lighten(a.color,25)} 0%, ${a.color} 60%, ${darken(a.color,20)} 100%); box-shadow:0 0 12px ${a.color}44">
-            ${a.icon}
-          </div>
-          <div class="agent-info">
-            <div class="agent-name">${a.label}</div>
-            <div class="agent-desc">${a.desc}</div>
-            ${connText ? '<div class="agent-conns">→ <span>'+connText+'</span></div>' : ''}
-          </div>
-        </div>`;
-    });
-
-    stage.innerHTML = `
-      <div class="stage-title">
-        <span class="badge" style="background:${agents[0].color}22;color:${agents[0].color}">${agents.length}</span>
-        ${GROUP_LABELS[g] || g}
+  AGENTS.forEach(a => {
+    const div = document.createElement('div');
+    div.className = 'agent-card';
+    div.dataset.agentId = a.id;
+    div.style.setProperty('--color', a.color);
+    const avSize = window.innerWidth <= 480 ? 50 : 62;
+    div.style.zIndex = Math.round(a.pos[2] * 10 + 50);
+    div.innerHTML = `
+      <div class="agent-avatar" style="
+        background:radial-gradient(circle at 35% 30%, ${lighten(a.color,25)} 0%, ${a.color} 60%, ${darken(a.color,20)} 100%);
+        width:${avSize}px;height:${avSize}px;font-size:${Math.round(avSize*0.48)}px;
+      ">
+        <div class="glow-ring"></div>
+        ${a.icon}
       </div>
-      ${arrowHTML}
-      <div class="agents-row">${cardsHTML}</div>
+      <div class="agent-name">${a.label}</div>
     `;
-    container.appendChild(stage);
+    scene.appendChild(div);
+  });
+  drawStars();
+}
+renderAll();
+updatePositions();
+
+// ====== UPDATE POSITIONS (every frame) ======
+function updatePositions() {
+  if (autoRotate) targetRotY += 0.002;
+  // Smooth rotation
+  displayRotX += (targetRotX - displayRotX) * 0.08;
+  displayRotY += (targetRotY - displayRotY) * 0.08;
+
+  const cards = document.querySelectorAll('.agent-card');
+  const t = Date.now() / 1000;
+
+  AGENTS.forEach((a, i) => {
+    const card = cards[i];
+    if (!card) return;
+    // Apply current rotation to 3D point
+    const rx = displayRotX, ry = displayRotY;
+    let x1 = a.pos[0] * Math.cos(ry) - a.pos[2] * Math.sin(ry);
+    let y1 = a.pos[1];
+    let z1 = a.pos[0] * Math.sin(ry) + a.pos[2] * Math.cos(ry);
+    let x2 = x1;
+    let y2 = y1 * Math.cos(rx) - z1 * Math.sin(rx);
+    let z2 = y1 * Math.sin(rx) + z1 * Math.cos(rx);
+
+    const blurAmt = Math.max(0, (z2 - 2) * 0.4);
+    card.style.filter = blurAmt > 0 ? `blur(${blurAmt}px)` : 'none';
+    const op = Math.max(0.4, Math.min(1, 1 - (z2 + 5) * 0.03));
+    card.style.opacity = op;
+
+    const perspective = 900;
+    const sc = perspective / (perspective + z2);
+    const sx = W/2 + x2 * sc;
+    const sy = H/2 - y2 * sc;
+    const float = Math.sin(t * 0.4 + i * 0.7) * 3;
+
+    card.style.transform = `translate(calc(${sx}px - 50%), calc(${sy}px - 50% + ${float}px)) scale(${sc})`;
+    card.style.left = '0';
+    card.style.top = '0';
+    card.dataset.curX = sx;
+    card.dataset.curY = sy;
   });
 }
 
-// SVG connections between agents
-function renderConnections() {
-  const wrap = document.querySelector('.pipeline-wrap');
-  if (!wrap) return;
+// ====== LINES (canvas, redrawn every frame) ======
+let lineCanvas, lineCtx;
+function initLines() {
+  lineCanvas = document.getElementById('lines-canvas');
+  lineCtx = lineCanvas.getContext('2d');
+}
+initLines();
 
-  let svg = wrap.querySelector('.svg-layer');
-  if (!svg) {
-    svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('class', 'svg-layer');
-    wrap.prepend(svg);
+let starPositions = [];
+function initStars() {
+  starPositions = [];
+  for (let i = 0; i < 200; i++) {
+    starPositions.push({
+      x: Math.random() * W, y: Math.random() * H,
+      r: Math.random() * 1.2 + 0.3,
+      alpha: Math.random() * 0.3 + 0.1,
+      speed: Math.random() * 0.3 + 0.1
+    });
   }
+}
+initStars();
+function updateStars() {
+  starPositions.forEach(s => {
+    s.y -= s.speed;
+    if (s.y < -5) { s.y = H + 5; s.x = Math.random() * W; }
+  });
+}
 
-  const ns = 'http://www.w3.org/2000/svg';
-  svg.innerHTML = '';
+function updateLines() {
+  const c = lineCanvas, ctx = lineCtx;
+  c.width = W; c.height = H;
+  ctx.clearRect(0, 0, W, H);
 
-  const wrapRect = wrap.getBoundingClientRect();
+  AGENTS.forEach(a => {
+    a.conns.forEach(t => {
+      let tid = t, dashed = false;
+      if (t.endsWith('-rev')) { tid = t.replace('-rev',''); dashed = true; }
+      if (t.endsWith('-feed')) { tid = t.replace('-feed',''); dashed = true; }
+      const from = AGENTS.find(x => x.id === a.id);
+      const to = AGENTS.find(x => x.id === tid);
+      if (!from || !to) return;
 
-  AGENTS.forEach(fromAgent => {
-    fromAgent.conns.forEach(connId => {
-      // Skip -rev and -feed connections
-      if (connId.endsWith('-rev') || connId.endsWith('-feed')) return;
+      const pA = project3D(from.pos[0], from.pos[1], from.pos[2]);
+      const pB = project3D(to.pos[0], to.pos[1], to.pos[2]);
+      const zAvg = (from.pos[2] + to.pos[2]) / 2;
 
-      const toId = connId.replace('-rev', '');
-      const fromEl = document.querySelector(`.agent-card[data-id="${fromAgent.id}"]`);
-      const toEl = document.querySelector(`.agent-card[data-id="${toId}"]`);
-      if (!fromEl || !toEl) return;
+      // Pulse
+      const pulse = 0.85 + 0.15 * Math.sin(Date.now() / 300);
+      const baseWidth = 1.2 * Math.min(pA.scale, pB.scale);
 
-      const fromRect = fromEl.getBoundingClientRect();
-      const toRect = toEl.getBoundingClientRect();
+      // Curve midpoint
+      const mx = (pA.x + pB.x) / 2;
+      const my = (pA.y + pB.y) / 2 - 15 * Math.min(pA.scale, pB.scale);
 
-      // Calculate positions relative to pipeline-wrap
-      const x1 = fromRect.right - wrapRect.left;
-      const y1 = fromRect.top + fromRect.height / 2 - wrapRect.top;
-      const x2 = toRect.left - wrapRect.left;
-      const y2 = toRect.top + toRect.height / 2 - wrapRect.top;
+      // Glow first (thick, transparent)
+      ctx.beginPath();
+      ctx.moveTo(pA.x, pA.y);
+      ctx.quadraticCurveTo(mx, my, pB.x, pB.y);
+      ctx.strokeStyle = a.color;
+      ctx.globalAlpha = 0.08;
+      ctx.lineWidth = baseWidth * 3 * pulse;
+      if (dashed) { ctx.setLineDash([4, 4]); } else { ctx.setLineDash([]); }
+      ctx.stroke();
 
-      // Don't draw if cards overlap or are too close
-      if (Math.abs(x2 - x1) < 20) return;
+      // Main gradient
+      const grad = ctx.createLinearGradient(pA.x, pA.y, pB.x, pB.y);
+      grad.addColorStop(0, from.color);
+      grad.addColorStop(1, to.color);
+      ctx.beginPath();
+      ctx.moveTo(pA.x, pA.y);
+      ctx.quadraticCurveTo(mx, my, pB.x, pB.y);
+      ctx.strokeStyle = grad;
+      ctx.globalAlpha = dashed ? 0.15 : 0.25;
+      ctx.lineWidth = baseWidth * pulse;
+      if (dashed) { ctx.setLineDash([4, 4]); } else { ctx.setLineDash([]); }
+      ctx.stroke();
 
-      // Bezier curve: control points offset horizontally
-      const cx = (x2 - x1) * 0.5;
-      const d = `M${x1},${y1} C${x1 + cx},${y1} ${x2 - cx},${y2} ${x2},${y2}`;
-
-      // Determine style
-      const isRev = connId.endsWith('-rev');
-      const strokeDasharray = isRev ? '6,4' : 'none';
-      const opacity = 0.35;
-
-      // Path
-      const path = document.createElementNS(ns, 'path');
-      path.setAttribute('d', d);
-      path.setAttribute('stroke', fromAgent.color);
-      path.setAttribute('stroke-width', '2');
-      path.setAttribute('fill', 'none');
-      path.setAttribute('stroke-dasharray', strokeDasharray);
-      path.setAttribute('opacity', opacity);
-      svg.appendChild(path);
-
-      // Arrowhead (triangle at the end)
-      const arrowSize = 6;
-      const angle = Math.atan2(y2 - y1, x2 - x1);
-      const ax = x2 - arrowSize * Math.cos(angle);
-      const ay = y2 - arrowSize * Math.sin(angle);
-      const arrow = document.createElementNS(ns, 'polygon');
-      const points = [
-        `${x2},${y2}`,
-        `${ax - arrowSize * 0.4 * Math.sin(angle)},${ay + arrowSize * 0.4 * Math.cos(angle)}`,
-        `${ax + arrowSize * 0.4 * Math.sin(angle)},${ay - arrowSize * 0.4 * Math.cos(angle)}`,
-      ].join(' ');
-      arrow.setAttribute('points', points);
-      arrow.setAttribute('fill', fromAgent.color);
-      arrow.setAttribute('opacity', opacity);
-      svg.appendChild(arrow);
+      ctx.globalAlpha = 1;
+      ctx.setLineDash([]);
     });
   });
 }
 
-function darken(hex,pct){const n=parseInt(hex.slice(1),16);return `#${(Math.max(0,(n>>16)-pct)<<16|Math.max(0,((n>>8)&0xff)-pct)<<8|Math.max(0,(n&0xff)-pct)).toString(16).padStart(6,'0')}`}
-
-// Selection
-function selectAgent(id) {
-  const a = AGENTS.find(x => x.id === id);
-  if (!a) return;
-  document.querySelectorAll('.agent-card').forEach(c => c.classList.toggle('selected', c.dataset.id === id));
-  document.getElementById('ipIcon').textContent = a.icon;
-  document.getElementById('ipName').textContent = a.label;
-  document.getElementById('ipGroup').textContent = GROUP_LABELS[a.group] || a.group;
-  document.getElementById('ipDesc').textContent = a.desc;
-  const conns = a.conns.filter(c => !c.endsWith('-rev') && !c.endsWith('-feed'));
-  const names = conns.map(c => c.replace('-rev','')).map(c => AGENTS.find(x=>x.id===c)).filter(Boolean).map(x=>x.icon+' '+x.label);
-  document.getElementById('ipConns').innerHTML = names.length ? '→ <span>'+names.join('</span>, <span>')+'</span>' : '';
-  document.getElementById('infoPanel').classList.add('visible');
+// ====== STARS ======
+function drawStars() {
+  const c = document.getElementById('star-canvas');
+  if (!c) return;
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+  starPositions.forEach(s => {
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(136,136,170,${s.alpha})`;
+    ctx.fill();
+  });
 }
 
-// Close panel on tap outside
-document.addEventListener('click', e => {
-  if (!e.target.closest('.agent-card') && !e.target.closest('.info-panel')) {
-    document.getElementById('infoPanel').classList.remove('visible');
-    document.querySelectorAll('.agent-card').forEach(c => c.classList.remove('selected'));
+// ====== INPUT HANDLING ======
+let isDragging = false;
+let dragStart = {x:0,y:0};
+let dragLast = {x:0,y:0};
+let clickStart = {x:0,y:0};
+let wasDragged = false;
+
+const wrap = document.getElementById('scene-wrap');
+
+wrap.addEventListener('pointerdown', e => {
+  if (e.target.closest('.info-panel') || e.target.closest('.header') || e.target.closest('.legend')) return;
+  isDragging = true; wasDragged = false;
+  autoRotate = false; clearTimeout(autoRotateTimer);
+  dragStart = {x:e.clientX, y:e.clientY};
+  dragLast = {x:e.clientX, y:e.clientY};
+  clickStart = {x:e.clientX, y:e.clientY};
+  wrap.setPointerCapture(e.pointerId);
+});
+wrap.addEventListener('pointermove', e => {
+  if (!isDragging) return;
+  const dx = e.clientX - dragLast.x;
+  const dy = e.clientY - dragLast.y;
+  dragLast = {x:e.clientX, y:e.clientY};
+  if(Math.abs(e.clientX - clickStart.x) > 4 || Math.abs(e.clientY - clickStart.y) > 4) wasDragged = true;
+  targetRotY += dx * 0.004;
+  targetRotX += dy * 0.004;
+  targetRotX = Math.max(-0.3, Math.min(0.5, targetRotX));
+});
+wrap.addEventListener('pointerup', e => {
+  isDragging = false;
+  wrap.releasePointerCapture(e.pointerId);
+  autoRotateTimer = setTimeout(() => { autoRotate = true; }, 5000);
+  if (!wasDragged) {
+    // Click — check if hitting an agent
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const card = el?.closest('.agent-card');
+    if (card) selectAgent(card.dataset.agentId);
+    else deselectAgent();
   }
 });
 
-// History
+// ====== SELECT / DESELECT ======
+function selectAgent(id) {
+  const a = AGENTS.find(x => x.id === id);
+  if (!a) return;
+  document.getElementById('ipIcon').textContent = a.icon;
+  document.getElementById('ipName').textContent = a.label;
+  document.getElementById('ipGroup').textContent = GROUP_NAMES[a.group] || a.group;
+  document.getElementById('ipDesc').textContent = a.desc;
+  const conns = a.conns.filter(c => !c.endsWith('-feed'));
+  const names = conns.map(c => c.replace('-rev','')).map(c => AGENTS.find(x=>x.id===c)).filter(Boolean).map(x => x.icon+' '+x.label);
+  document.getElementById('ipConns').innerHTML = names.length ? '→ <span>'+names.join('</span>, <span>')+'</span>' : '';
+  document.getElementById('infoPanel').classList.add('visible');
+  document.querySelectorAll('.agent-card').forEach(c => {
+    c.classList.toggle('selected', c.dataset.agentId === id);
+    if (c.dataset.agentId !== id) c.style.opacity = '0.35';
+  });
+}
+function deselectAgent() {
+  document.getElementById('infoPanel').classList.remove('visible');
+  document.querySelectorAll('.agent-card').forEach(c => {
+    c.classList.remove('selected'); c.style.opacity = '1';
+  });
+}
+
+// ====== HISTORY (collapsible groups) ======
 const HISTORY_GROUPS = [{
-  id:'pipeline3d', time:'Сессия 1', title:'🕸 Создать 3D визуализацию агентов', count:5, items:[
-    {time:'1', from:'translator', to:'planner', task:'Сделать 3D страницу архитектуры агентов'},
+  id:'3dvis', time:'Сессия 1', title:'🕸 Создать 3D визуализацию агентов', count:4, items:[
+    {time:'1', from:'translator', to:'planner', task:'Сделать 3D страницу архитектуры'},
     {time:'2', from:'planner', to:'coder', task:'Three.js сцена с 18 агентами'},
-    {time:'3', from:'tester', to:'reviewer', task:'✅ 3D сцена работает'},
-    {time:'4', from:'reviewer', to:'reporter', task:'Готово к показу'},
+    {time:'3', from:'tester', to:'reviewer', task:'✅ 3D работает'},
+    {time:'4', from:'reviewer', to:'reporter', task:'Готово'},
   ]},{
-  id:'fix3d', time:'Сессия 2', title:'🔧 Починить 3D — агенты в углу', count:5, items:[
-    {time:'1', from:'translator', to:'planner', task:'Починить позиционирование агентов'},
-    {time:'2', from:'planner', to:'coder', task:'CSS transform с calc() вместо цепочки'},
+  id:'fixpos', time:'Сессия 2', title:'🔧 Починить позиционирование', count:5, items:[
+    {time:'1', from:'translator', to:'planner', task:'Агенты в углу — починить'},
+    {time:'2', from:'planner', to:'coder', task:'CSS transform с calc(), project3D'},
     {time:'3', from:'tester', to:'reviewer', task:'❌ Всё ещё сломано'},
-    {time:'4', from:'coder', to:'tester', task:'Переписал на project3D + updatePositions'},
+    {time:'4', from:'coder', to:'tester', task:'Починил updatePositions'},
     {time:'5', from:'tester', to:'reviewer', task:'✅ Работает'},
   ]},{
-  id:'effects', time:'Сессия 3', title:'✨ Добавить эффекты: blur, звёзды, авто-вращение', count:4, items:[
-    {time:'1', from:'translator', to:'planner', task:'Улучшить визуальные эффекты'},
-    {time:'2', from:'planner', to:'coder', task:'Blur, пульсация, градиент линий, звёзды'},
+  id:'effects', time:'Сессия 3', title:'✨ Добавить визуальные эффекты', count:4, items:[
+    {time:'1', from:'translator', to:'planner', task:'Добавить эффекты'},
+    {time:'2', from:'planner', to:'coder', task:'Blur, пульсация, градиент, звёзды'},
     {time:'3', from:'tester', to:'reviewer', task:'❌ Сломал позиционирование'},
-    {time:'4', from:'coder', to:'tester', task:'Откат + добавление эффектов на рабочую версию'},
+    {time:'4', from:'coder', to:'tester', task:'Откат + эффекты на рабочую версию'},
   ]},{
-  id:'rewrite', time:'Сессия 4', title:'🔄 Переписать на 2D схему', count:3, items:[
-    {time:'1', from:'translator', to:'planner', task:'3D не работает в Telegram, переделать'},
-    {time:'2', from:'planner', to:'coder', task:'Чистая 2D схема, без Canvas'},
-    {time:'3', from:'tester', to:'reviewer', task:'✅ Работает везде'},
-  ]},{
-  id:'connections', time:'Сессия 5', title:'🔗 Добавить связи между агентами', count:2, items:[
+  id:'connections', time:'Сессия 4', title:'🔗 Добавить связи между агентами', count:2, items:[
     {time:'1', from:'translator', to:'planner', task:'Нет видимых связей между агентами'},
-    {time:'2', from:'planner', to:'coder', task:'SVG стрелки от from к to по conns'},
+    {time:'2', from:'planner', to:'coder', task:'Правильные SVG/Canvas линии'},
   ]},
 ];
 
@@ -384,52 +500,74 @@ function renderHistory() {
   const body = document.getElementById('historyBody');
   body.innerHTML = '';
   HISTORY_GROUPS.forEach(g => {
-    const agentIds = [...new Set(g.items.flatMap(i => [i.from, i.to]).filter(x => x !== '☀️ Пользователь'))];
-    const icons = agentIds.slice(0,3).map(id => { const a=AGENTS.find(x=>x.id===id); return a?a.icon:''; });
     const div = document.createElement('div');
     div.className = 'history-group';
+    div.id = 'hg-'+g.id;
+    const agentIds = [...new Set(g.items.flatMap(i => [i.from, i.to]).filter(x => x !== '☀️ Пользователь' && AGENTS.find(a => a.id === x)))];
+    const colors = agentIds.slice(0,3).map(id => { const a = AGENTS.find(x=>x.id===id); return a ? a.color : '#7c5cfc'; });
+    const avatars = agentIds.slice(0,3).map(id => { const a = AGENTS.find(x=>x.id===id); return a ? a.icon : ''; });
     div.innerHTML = `
       <div class="hg-header" onclick="toggleHistory('${g.id}')">
         <div class="hg-time">${g.time}</div>
         <div class="hg-title">${g.title}</div>
-        <div style="display:flex;gap:2px">${icons.map(ic=>'<span style="font-size:11px">'+ic+'</span>').join('')}</div>
+        <div style="display:flex;gap:1px;flex-shrink:0">
+          ${avatars.map((ic,i) => `<span style="font-size:10px;border:1px solid ${colors[i]}33;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;background:${colors[i]}15">${ic}</span>`).join('')}
+        </div>
         <span class="hg-count">${g.count}</span>
         <span class="hg-toggle">▼</span>
       </div>
-      <div class="hg-body">
+      <div class="hg-body" id="hgb-${g.id}">
         ${g.items.map(item => {
           const from = AGENTS.find(a => a.id === item.from);
           const to = AGENTS.find(a => a.id === item.to);
           if (!from || !to) return '';
           return `<div class="hg-item">
             <div class="hgi-time">${item.time}</div>
-            <div class="hgi-desc">
-              <span class="hgi-flow">
-                <span class="from" style="background:${from.color}33;color:${from.color}">${from.icon}</span>
-                <span class="hgi-arrow">→</span>
-                <span class="to" style="background:${to.color}33;color:${to.color}">${to.icon}</span>
-              </span>
-              ${item.task}
-            </div>
+            <div class="hgi-desc"><span class="hgi-flow">
+              <span class="from" style="background:${from.color}33;color:${from.color}">${from.icon}</span>
+              <span class="hi-arrow">→</span>
+              <span class="to" style="background:${to.color}33;color:${to.color}">${to.icon}</span>
+            </span>${item.task}</div>
           </div>`;
         }).join('')}
-      </div>`;
+      </div>
+    `;
     body.appendChild(div);
   });
 }
 window.toggleHistory = function(id) {
-  const g = document.querySelector(`.history-group:nth-child(${HISTORY_GROUPS.findIndex(x=>x.id===id)+1})`);
-  if (g) {
-    // Close all others
-    document.querySelectorAll('.history-group').forEach(h => { if (h !== g) h.classList.remove('open'); });
-    g.classList.toggle('open');
-  }
+  const g = document.getElementById('hg-'+id);
+  if (g) g.classList.toggle('open');
 };
-
-renderPipeline();
-renderConnections();
 renderHistory();
-window.addEventListener('resize', renderConnections);
+
+// ====== COLOR HELPERS ======
+function lighten(hex, pct) {
+  const n = parseInt(hex.slice(1),16);
+  return `#${(Math.min(255,(n>>16)+pct)<<16|Math.min(255,((n>>8)&0xff)+pct)<<8|Math.min(255,(n&0xff)+pct)).toString(16).padStart(6,'0')}`;
+}
+function darken(hex, pct) {
+  const n = parseInt(hex.slice(1),16);
+  return `#${(Math.max(0,(n>>16)-pct)<<16|Math.max(0,((n>>8)&0xff)-pct)<<8|Math.max(0,(n&0xff)-pct)).toString(16).padStart(6,'0')}`;
+}
+
+// ====== ANIMATION LOOP ======
+function animate() {
+  updatePositions();
+  updateStars(); drawStars();
+  updateLines();
+  requestAnimationFrame(animate);
+}
+animate();
+
+// ====== RESIZE ======
+window.addEventListener('resize', () => {
+  getSceneSize();
+  initStars();
+  // Re-render stars on resize (debounced)
+  clearTimeout(window._starTimer);
+  window._starTimer = setTimeout(drawStars, 200);
+});
 </script>
 </body>
 </html>
