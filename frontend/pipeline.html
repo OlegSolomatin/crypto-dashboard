@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>MOE — Архитектура агентов</title>
 <meta name="apple-mobile-web-app-title" content="MOE">
 <link rel="manifest" href="/manifest.json">
@@ -10,9 +10,9 @@
 <link rel="apple-touch-icon" href="/icon-light-180.png">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#08081c;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#e0e0f0;height:100dvh;width:100vw;touch-action:none;display:flex}
+body{background:#08081c;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#e0e0f0;height:100dvh;width:100vw;display:flex}
 
-/* === History Sidebar (Desktop) === */
+/* ====== HISTORY SIDEBAR ====== */
 .history-sidebar{
   display:none;
   width:300px;min-width:300px;height:100dvh;
@@ -51,24 +51,86 @@ body{background:#08081c;overflow:hidden;font-family:-apple-system,BlinkMacSystem
 }
 .hi-arrow{color:#555;font-size:10px}
 .hi-task{font-size:11px;color:#aaa;margin-top:3px;line-height:1.4}
-.hi-dot{display:inline-block;width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:4px}
 @keyframes fadeSlide{
   from{opacity:0;transform:translateY(6px)}
   to{opacity:1;transform:translateY(0)}
 }
 
-/* === 3D Canvas === */
-#canvas-wrap{
-  flex:1;height:100dvh;
-  position:relative;
+/* ====== 3D SCENE ====== */
+#scene-wrap{
+  flex:1;height:100dvh;overflow:hidden;position:relative;
+  perspective:1200px; perspective-origin:50% 40%;
+}
+#scene{
+  width:100%;height:100%;
+  transform-style:preserve-3d;
+  transition:transform .1s linear;
+  will-change:transform;
+  position:absolute;top:0;left:0;
 }
 
-/* Header overlay */
+/* Agent card */
+.agent-card{
+  position:absolute;
+  transform-style:preserve-3d;
+  cursor:pointer;
+  transition:transform .3s cubic-bezier(.4,0,.2,1),opacity .3s;
+  user-select:none;
+  -webkit-tap-highlight-color:transparent;
+}
+.agent-card:hover .agent-avatar{transform:scale(1.08)}
+.agent-card.selected .agent-avatar{transform:scale(1.12)}
+.agent-card.selected .agent-avatar::after{opacity:1}
+
+/* Avatar */
+.agent-avatar{
+  width:62px;height:62px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:30px;
+  margin:0 auto;
+  position:relative;
+  transition:transform .3s cubic-bezier(.4,0,.2,1),box-shadow .3s;
+  will-change:transform;
+}
+.agent-avatar::after{
+  content:'';position:absolute;inset:-4px;border-radius:50%;
+  border:2px solid var(--accent);
+  opacity:0;transition:opacity .3s;
+  box-shadow:0 0 16px var(--accent-shadow);
+}
+.agent-avatar .glow-ring{
+  position:absolute;inset:-6px;border-radius:50%;
+  border:1px solid var(--accent);
+  opacity:0.12;
+}
+
+/* Name */
+.agent-name{
+  text-align:center;
+  font-size:11px;font-weight:600;
+  margin-top:6px;
+  text-shadow:0 2px 8px rgba(0,0,0,.7);
+  white-space:nowrap;
+}
+
+/* Lines (SVG overlay) */
+#lines-svg{
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  pointer-events:none;
+  z-index:0;
+}
+#lines-svg line, #lines-svg path{
+  stroke-width:1.5;
+  fill:none;
+  stroke-linecap:round;
+}
+
+/* Header */
 .header{
-  position:fixed;top:0;left:0;right:0;z-index:10;
+  position:fixed;top:0;left:0;right:0;z-index:15;
   display:flex;align-items:center;gap:12px;
   padding:12px 16px;
-  background:linear-gradient(180deg,rgba(8,8,28,.9) 0%,transparent 100%);
+  background:linear-gradient(180deg,rgba(8,8,28,.92) 0%,transparent 100%);
   pointer-events:none;
 }
 .header>*{pointer-events:auto}
@@ -85,18 +147,17 @@ body{background:#08081c;overflow:hidden;font-family:-apple-system,BlinkMacSystem
 
 /* Legend */
 .legend{
-  position:fixed;top:70px;right:12px;z-index:10;
+  position:fixed;top:70px;right:12px;z-index:15;
   background:rgba(15,15,46,.85);border:1px solid rgba(124,92,252,.12);
   border-radius:12px;padding:10px 12px;backdrop-filter:blur(4px);
   font-size:10px;line-height:1.8;
 }
 .legend-item{display:flex;align-items:center;gap:6px}
-.legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;box-shadow:0 0 4px currentColor}
 
 /* Info panel */
 .info-panel{
   position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
-  z-index:10;
+  z-index:15;
   background:rgba(15,15,46,.92);border:1px solid rgba(124,92,252,.2);
   border-radius:16px;padding:14px 18px;
   backdrop-filter:blur(8px);
@@ -106,38 +167,39 @@ body{background:#08081c;overflow:hidden;font-family:-apple-system,BlinkMacSystem
 }
 .info-panel.visible{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
 .info-panel .ip-name{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px}
-.info-panel .ip-group{font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(124,92,252,.15);color:#7c5cfc;margin-left:auto}
+.info-panel .ip-group{
+  font-size:10px;padding:2px 8px;border-radius:4px;
+  background:rgba(124,92,252,.15);color:#7c5cfc;
+  display:inline-block;margin-top:4px;
+}
 .info-panel .ip-desc{font-size:12px;color:#8888aa;margin-top:6px;line-height:1.5}
 .info-panel .ip-connections{font-size:11px;color:#8888aa;margin-top:6px}
 .info-panel .ip-connections span{color:#10b981}
-
-/* Loading */
-.loading{
-  position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
-  z-index:5;text-align:center;color:#8888aa;font-size:14px;
-  transition:opacity .8s;
-}
-.loading .spinner{
-  width:32px;height:32px;
-  border:3px solid rgba(124,92,252,.15);border-top-color:#7c5cfc;
-  border-radius:50%;animation:spin .8s linear infinite;
-  margin:0 auto 12px;
-}
-@keyframes spin{to{transform:rotate(360deg)}}
-.loading.hidden{opacity:0;pointer-events:none}
 
 /* Hint */
 .hint{
   position:fixed;bottom:90px;left:50%;transform:translateX(-50%);
   z-index:5;font-size:11px;color:rgba(136,136,170,.3);text-align:center;
-  pointer-events:none;animation:fadeOut 6s forwards;
+  pointer-events:none;animation:hintFade 8s forwards;
 }
-@keyframes fadeOut{0%,70%{opacity:1}100%{opacity:0}}
+@keyframes hintFade{0%,70%{opacity:1}100%{opacity:0}}
 
-/* Desktop adjustments */
+/* Stars */
+.stars-canvas{
+  position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;
+  pointer-events:none;
+}
+
+/* Desktop sidebar */
 @media (min-width:1024px){
   .history-sidebar{display:flex}
   .legend{right:16px}
+}
+
+/* Mobile adjustments */
+@media (max-width:480px){
+  .agent-avatar{width:50px;height:50px;font-size:24px}
+  .agent-name{font-size:10px}
 }
 </style>
 </head>
@@ -152,164 +214,291 @@ body{background:#08081c;overflow:hidden;font-family:-apple-system,BlinkMacSystem
   <div class="history-body" id="historyBody"></div>
 </div>
 
-<!-- 3D Container -->
-<div id="canvas-wrap">
-  <div class="loading" id="loading">
-    <div class="spinner"></div>
-    Загрузка...
+<!-- 3D Scene -->
+<div id="scene-wrap">
+  <canvas class="stars-canvas" id="starsCanvas"></canvas>
+  <svg id="lines-svg"></svg>
+  <div id="scene">
+    <!-- Agents rendered by JS -->
   </div>
 
   <div class="header">
     <a class="back-btn" href="/">←</a>
     <div>
       <div class="header-title">🤖 Архитектура агентов</div>
-      <div class="header-sub">18 агентов · Тапни на агента для информации</div>
+      <div class="header-sub">18 агентов · Тапни для информации</div>
     </div>
   </div>
 
   <div class="legend">
-    <div class="legend-item" style="color:#7c5cfc"><span class="legend-dot" style="color:#7c5cfc"></span> Ядро</div>
-    <div class="legend-item" style="color:#3b82f6"><span class="legend-dot" style="color:#3b82f6"></span> Исполнители</div>
-    <div class="legend-item" style="color:#10b981"><span class="legend-dot" style="color:#10b981"></span> Контроль</div>
-    <div class="legend-item" style="color:#f59e0b"><span class="legend-dot" style="color:#f59e0b"></span> Результат</div>
-    <div class="legend-item" style="color:#ef4444"><span class="legend-dot" style="color:#ef4444"></span> Поддержка</div>
+    <div class="legend-item" style="color:#7c5cfc"><span class="legend-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#7c5cfc;box-shadow:0 0 6px #7c5cfc"></span> Ядро</div>
+    <div class="legend-item" style="color:#3b82f6"><span class="legend-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3b82f6;box-shadow:0 0 6px #3b82f6"></span> Исполнители</div>
+    <div class="legend-item" style="color:#10b981"><span class="legend-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981"></span> Контроль</div>
+    <div class="legend-item" style="color:#f59e0b"><span class="legend-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b;box-shadow:0 0 6px #f59e0b"></span> Результат</div>
+    <div class="legend-item" style="color:#ef4444"><span class="legend-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ef4444;box-shadow:0 0 6px #ef4444"></span> Поддержка</div>
   </div>
 
   <div class="hint" id="hint">👆 Тапни на агента</div>
 
   <div class="info-panel" id="infoPanel">
-    <div style="display:flex;align-items:flex-start">
-      <div>
-        <div class="ip-name"><span id="ipIcon">🤖</span> <span id="ipName">agent</span></div>
-        <div class="ip-group" id="ipGroup">group</div>
-      </div>
+    <div>
+      <div class="ip-name"><span id="ipIcon">🤖</span> <span id="ipName">agent</span></div>
+      <div class="ip-group" id="ipGroup">group</div>
     </div>
     <div class="ip-desc" id="ipDesc">Описание</div>
     <div class="ip-connections" id="ipConns"></div>
   </div>
 </div>
 
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-  }
-}
-</script>
-
-<script type="module">
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-
-document.getElementById('loading').classList.add('hidden');
-
+<script>
 // ====== AGENT DATA ======
 const AGENTS = [
-  { id:'translator',  label:'Translator',  icon:'🌐', desc:'Перевод и форматирование запросов на входе', group:'core', color:'#7c5cfc', pos:[-6,0,0],
-    conns:['planner'] },
-  { id:'planner',     label:'Planner',     icon:'📋', desc:'Декомпозиция задачи на атомарные шаги', group:'core', color:'#8b7cf7', pos:[-4,0,0],
-    conns:['analyst'] },
-  { id:'analyst',     label:'Analyst',     icon:'🧠', desc:'Глубокий анализ: 6 критериев оценки плана', group:'core', color:'#9b6ef0', pos:[-2,0,0],
-    conns:['delegator','reviewer-rev'] },
-  { id:'delegator',   label:'Delegator',   icon:'🎯', desc:'Распределение задач между исполнителями', group:'core', color:'#5b6abf', pos:[0,0,0],
-    conns:['preloader','coder','designer','data-analyst','devops','trading-analyst'] },
+  { id:'translator',  label:'Translator',  icon:'🌐', desc:'Перевод и форматирование запросов на входе', group:'core', color:'#7c5cfc', pos:[-6,0,0], conns:['planner'] },
+  { id:'planner',     label:'Planner',     icon:'📋', desc:'Декомпозиция задачи на атомарные шаги', group:'core', color:'#8b7cf7', pos:[-4,0,0], conns:['analyst'] },
+  { id:'analyst',     label:'Analyst',     icon:'🧠', desc:'Глубокий анализ: 6 критериев оценки плана', group:'core', color:'#9b6ef0', pos:[-2,0,0], conns:['delegator','reviewer-rev'] },
+  { id:'delegator',   label:'Delegator',   icon:'🎯', desc:'Распределение задач между исполнителями', group:'core', color:'#5b6abf', pos:[0,0,0], conns:['preloader','coder','designer','data-analyst','devops','trading-analyst'] },
 
-  { id:'preloader',   label:'Preloader',   icon:'📥', desc:'Подготовка данных и контекста перед работой', group:'worker', color:'#e17055', pos:[1.6,3.2,0],
-    conns:['reviewer'] },
-  { id:'coder',       label:'Coder',       icon:'💻', desc:'Написание кода на Python, JS, C', group:'worker', color:'#0984e3', pos:[1.6,1.8,0],
-    conns:['reviewer','tester'] },
-  { id:'designer',    label:'Designer',    icon:'🎨', desc:'UI/UX дизайн, HTML, CSS, SVG-графика', group:'worker', color:'#e84393', pos:[1.6,0.6,0],
-    conns:['reviewer'] },
-  { id:'data-analyst',label:'Data Analyst',icon:'📈', desc:'Анализ данных, метрик и статистики', group:'worker', color:'#00b894', pos:[1.6,-0.6,0],
-    conns:['reviewer'] },
-  { id:'devops',      label:'DevOps',      icon:'⚙️', desc:'Развёртывание, CI/CD, инфраструктура', group:'worker', color:'#636e72', pos:[1.6,-1.8,0],
-    conns:['reviewer'] },
-  { id:'trading-analyst', label:'Trading An.', icon:'📊', desc:'Торговые сигналы и рыночный анализ', group:'worker', color:'#fdcb6e', pos:[1.6,-3.2,0],
-    conns:['reviewer'] },
+  { id:'preloader',   label:'Preloader',   icon:'📥', desc:'Подготовка данных и контекста перед работой', group:'worker', color:'#e17055', pos:[1.6,3.2,0], conns:['reviewer'] },
+  { id:'coder',       label:'Coder',       icon:'💻', desc:'Написание кода на Python, JS, C', group:'worker', color:'#0984e3', pos:[1.6,1.8,0], conns:['reviewer','tester'] },
+  { id:'designer',    label:'Designer',    icon:'🎨', desc:'UI/UX дизайн, HTML, CSS, SVG-графика', group:'worker', color:'#e84393', pos:[1.6,0.6,0], conns:['reviewer'] },
+  { id:'data-analyst',label:'Data Analyst',icon:'📈', desc:'Анализ данных, метрик и статистики', group:'worker', color:'#00b894', pos:[1.6,-0.6,0], conns:['reviewer'] },
+  { id:'devops',      label:'DevOps',      icon:'⚙️', desc:'Развёртывание, CI/CD, инфраструктура', group:'worker', color:'#636e72', pos:[1.6,-1.8,0], conns:['reviewer'] },
+  { id:'trading-analyst', label:'Trading An.', icon:'📊', desc:'Торговые сигналы и рыночный анализ', group:'worker', color:'#fdcb6e', pos:[1.6,-3.2,0], conns:['reviewer'] },
 
-  { id:'reviewer',    label:'Reviewer',    icon:'🔍', desc:'Контроль качества: 7 критериев, QA-петля', group:'qa', color:'#00b894', pos:[4.5,0,0],
-    conns:['analyst-rev','reporter'] },
-  { id:'tester',      label:'Tester',      icon:'🧪', desc:'Тестирование кода: синтаксис, edge cases', group:'qa', color:'#55efc4', pos:[4.5,2.5,0],
-    conns:['reviewer'] },
-  { id:'technical-writer', label:'Tech Writer', icon:'📖', desc:'Документация: README, API, changelog', group:'qa', color:'#74b9ff', pos:[4.5,-1.8,0],
-    conns:['reviewer'] },
-  { id:'security-auditor', label:'Security', icon:'🛡️', desc:'8 векторов проверки безопасности', group:'qa', color:'#d63031', pos:[4.5,-3.5,0],
-    conns:['reviewer'] },
+  { id:'reviewer',    label:'Reviewer',    icon:'🔍', desc:'Контроль качества: 7 критериев, QA-петля', group:'qa', color:'#00b894', pos:[4.5,0,0], conns:['analyst-rev','reporter'] },
+  { id:'tester',      label:'Tester',      icon:'🧪', desc:'Тестирование кода: синтаксис, edge cases', group:'qa', color:'#55efc4', pos:[4.5,2.5,0], conns:['reviewer'] },
+  { id:'technical-writer', label:'Tech Writer', icon:'📖', desc:'Документация: README, API, changelog', group:'qa', color:'#74b9ff', pos:[4.5,-1.8,0], conns:['reviewer'] },
+  { id:'security-auditor', label:'Security', icon:'🛡️', desc:'8 векторов проверки безопасности', group:'qa', color:'#d63031', pos:[4.5,-3.5,0], conns:['reviewer'] },
 
-  { id:'reporter',    label:'Reporter',    icon:'📝', desc:'Финальное форматирование сводного отчёта', group:'output', color:'#f59e0b', pos:[7,0,0],
-    conns:['default'] },
-  { id:'default',     label:'Default',     icon:'🤖', desc:'Главный агент — финальный ответ пользователю', group:'output', color:'#dfe6e9', pos:[9,0,0],
-    conns:[] },
+  { id:'reporter',    label:'Reporter',    icon:'📝', desc:'Финальное форматирование сводного отчёта', group:'output', color:'#f59e0b', pos:[7,0,0], conns:['default'] },
+  { id:'default',     label:'Default',     icon:'🤖', desc:'Главный агент — финальный ответ пользователю', group:'output', color:'#dfe6e9', pos:[9,0,0], conns:[] },
 
-  { id:'cost-tracker', label:'Cost Tracker', icon:'💰', desc:'Мониторинг расхода токенов', group:'support', color:'#fdcb6e', pos:[-3,2.5,3],
-    conns:['delegator-feed'] },
-  { id:'health-monitor', label:'Health',icon:'🩺', desc:'Проверка живых агентов, профилей, API', group:'support', color:'#55efc4', pos:[-3,-2.5,3],
-    conns:['default-feed'] },
+  { id:'cost-tracker', label:'Cost Tracker', icon:'💰', desc:'Мониторинг расхода токенов', group:'support', color:'#fdcb6e', pos:[-3,2.5,3], conns:['delegator-feed'] },
+  { id:'health-monitor', label:'Health',icon:'🩺', desc:'Проверка живых агентов, профилей, API', group:'support', color:'#55efc4', pos:[-3,-2.5,3], conns:['default-feed'] },
 ];
 
 const GROUP_NAMES = { core:'Ядро пайплайна', worker:'Исполнители', qa:'Контроль качества', output:'Вывод', support:'Поддержка' };
 
-// ====== SPRITE GENERATOR ======
-function createAvatarSprite(agent) {
-  const size = 256;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
+// ====== PROJECT 3D → SCREEN COORDS ======
+let sceneWidth, sceneHeight;
+function getSceneSize() {
+  const wrap = document.getElementById('scene-wrap');
+  sceneWidth = wrap.clientWidth;
+  sceneHeight = wrap.clientHeight;
+}
+getSceneSize();
+window.addEventListener('resize', getSceneSize);
 
-  const cx = size/2, cy = size/2, r = size/2 - 4;
+// The visual space: X from -8 to 10, Y from -4.5 to 4, Z from -3 to 3
+// Scale: map this to the viewport
+const VIEW_W = 18; // total width units
+const VIEW_H = 9;  // total height units
+const VIEW_SCALE_X = () => sceneWidth / VIEW_W;
+const VIEW_SCALE_Y = () => sceneHeight / VIEW_H;
+const VIEW_CENTER_X = 1; // center of scene X
+const VIEW_CENTER_Y = 0; // center of scene Y
 
-  // Glow
-  const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, r+8);
-  glow.addColorStop(0, hexColor(agent.color, 0.3));
-  glow.addColorStop(1, hexColor(agent.color, 0));
-  ctx.fillStyle = glow;
-  ctx.beginPath(); ctx.arc(cx, cy, r+8, 0, Math.PI*2); ctx.fill();
+function worldToScreen(wx, wy, wz) {
+  const sx = (wx - VIEW_CENTER_X) * VIEW_SCALE_X() + sceneWidth/2;
+  const sy = (wy - VIEW_CENTER_Y) * VIEW_SCALE_Y() + sceneHeight/2;
+  // Z affects size and position slightly (parallax)
+  const zFactor = 1 + wz * 0.03; // subtle
+  return { x: sx, y: sy, z: zFactor };
+}
 
-  // Gradient circle
-  const grad = ctx.createRadialGradient(cx-r*0.3, cy-r*0.3, 0, cx, cy, r);
-  const c = agent.color;
-  grad.addColorStop(0, lighten(c, 40));
-  grad.addColorStop(0.6, c);
-  grad.addColorStop(1, darken(c, 30));
-  ctx.fillStyle = grad;
-  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fill();
+// ====== CAMERA / ROTATION ======
+let rotX = 0.1, rotY = 0;
+let targetRotX = 0.1, targetRotY = 0;
+let isDragging = false;
+let dragStart = { x:0, y:0 };
+let dragLast = { x:0, y:0 };
 
-  // Border glow
-  ctx.strokeStyle = hexColor(agent.color, 0.4);
-  ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(cx, cy, r-1, 0, Math.PI*2);
-  ctx.stroke();
+function updateCamera() {
+  const scene = document.getElementById('scene');
+  // Smooth interpolation
+  rotX += (targetRotX - rotX) * 0.08;
+  rotY += (targetRotY - rotY) * 0.08;
+  scene.style.transform = `rotateX(${rotX}rad) rotateY(${rotY}rad)`;
+  requestAnimationFrame(updateCamera);
+}
+updateCamera();
 
-  // Emoji
-  ctx.font = '96px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.shadowColor = 'rgba(0,0,0,0.4)';
-  ctx.shadowBlur = 8;
-  ctx.fillText(agent.icon, cx, cy-2);
+// Drag to rotate
+const wrap = document.getElementById('scene-wrap');
+wrap.addEventListener('pointerdown', e => {
+  if (e.target.closest('.history-sidebar') || e.target.closest('.info-panel') || e.target.closest('.header') || e.target.closest('.legend')) return;
+  isDragging = true;
+  dragStart = { x: e.clientX, y: e.clientY };
+  dragLast = { x: e.clientX, y: e.clientY };
+  wrap.setPointerCapture(e.pointerId);
+});
+wrap.addEventListener('pointermove', e => {
+  if (!isDragging) return;
+  const dx = e.clientX - dragLast.x;
+  const dy = e.clientY - dragLast.y;
+  dragLast = { x: e.clientX, y: e.clientY };
+  targetRotY += dx * 0.005;
+  targetRotX += dy * 0.005;
+  targetRotX = Math.max(-0.3, Math.min(0.5, targetRotX));
+});
+wrap.addEventListener('pointerup', e => {
+  isDragging = false;
+  wrap.releasePointerCapture(e.pointerId);
+});
 
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.needsUpdate = true;
-  const mat = new THREE.SpriteMaterial({
-    map: texture,
-    transparent: true,
-    depthTest: true,
-    depthWrite: false,
-    sizeAttenuation: true,
+// ====== DETECT CLICK ON AGENT ======
+let selectedAgent = null;
+let clickStartPos = { x:0, y:0 };
+let isClickDrag = false;
+
+wrap.addEventListener('pointerdown', e => {
+  clickStartPos = { x: e.clientX, y: e.clientY };
+  isClickDrag = false;
+});
+wrap.addEventListener('pointermove', e => {
+  if (Math.abs(e.clientX - clickStartPos.x) > 5 || Math.abs(e.clientY - clickStartPos.y) > 5) isClickDrag = true;
+});
+wrap.addEventListener('pointerup', e => {
+  if (isClickDrag) return;
+  // Check if tapped on an agent card
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  const card = el?.closest('.agent-card');
+  if (card) {
+    selectAgent(card.dataset.agentId);
+  } else if (!e.target.closest('.info-panel')) {
+    deselectAgent();
+  }
+});
+
+function selectAgent(id) {
+  const a = AGENTS.find(x => x.id === id);
+  if (!a) return;
+  selectedAgent = id;
+  // Update info panel
+  document.getElementById('ipIcon').textContent = a.icon;
+  document.getElementById('ipName').textContent = a.label;
+  document.getElementById('ipGroup').textContent = GROUP_NAMES[a.group] || a.group;
+  document.getElementById('ipDesc').textContent = a.desc;
+  const conns = a.conns.filter(c => !c.endsWith('-feed'));
+  const names = conns.map(c => c.replace('-rev','')).map(c => AGENTS.find(x=>x.id===c)).filter(Boolean).map(x=>x.icon+' '+x.label);
+  document.getElementById('ipConns').innerHTML = names.length ? '→ <span>'+names.join('</span>, <span>')+'</span>' : '';
+  document.getElementById('infoPanel').classList.add('visible');
+  // Highlight
+  document.querySelectorAll('.agent-card').forEach(c => c.classList.toggle('selected', c.dataset.agentId === id));
+  // Dim non-selected
+  document.querySelectorAll('.agent-card').forEach(c => {
+    if (c.dataset.agentId !== id) c.style.opacity = '0.4';
   });
-  const sprite = new THREE.Sprite(mat);
-  sprite.scale.set(1.6, 1.6, 1);
-  return sprite;
 }
 
-function hexColor(hex, alpha) {
-  const r = parseInt(hex.slice(1,3), 16);
-  const g = parseInt(hex.slice(3,5), 16);
-  const b = parseInt(hex.slice(5,7), 16);
-  return `rgba(${r},${g},${b},${alpha})`;
+function deselectAgent() {
+  selectedAgent = null;
+  document.getElementById('infoPanel').classList.remove('visible');
+  document.querySelectorAll('.agent-card').forEach(c => {
+    c.classList.remove('selected');
+    c.style.opacity = '1';
+  });
 }
+
+// ====== RENDER AGENTS ======
+function renderAgents() {
+  const scene = document.getElementById('scene');
+  scene.innerHTML = '';
+
+  AGENTS.forEach(a => {
+    const s = worldToScreen(a.pos[0], a.pos[1], a.pos[2]);
+    // Z factor: shift based on Z depth
+    const zShift = a.pos[2] * 1.2;
+    const div = document.createElement('div');
+    div.className = 'agent-card';
+    div.dataset.agentId = a.id;
+    const scale = s.z;
+    // Adjust for mobile
+    const avSize = window.innerWidth <= 480 ? 50 : 62;
+    div.style.cssText = `
+      left:${s.x}px; top:${s.y}px;
+      transform:translate(-50%,-50%) scale(${scale});
+      z-index:${Math.round(a.pos[2] * 10 + 50)};
+    `;
+
+    div.innerHTML = `
+      <div class="agent-avatar" style="
+        --accent:${a.color};
+        --accent-shadow:${a.color}44;
+        background:radial-gradient(circle at 35% 30%, ${lighten(a.color,25)} 0%, ${a.color} 60%, ${darken(a.color,20)} 100%);
+        box-shadow:0 0 20px ${a.color}33, 0 4px 16px rgba(0,0,0,.3);
+        width:${avSize}px;height:${avSize}px;font-size:${Math.round(avSize*0.48)}px;
+      ">
+        <div class="glow-ring"></div>
+        ${a.icon}
+      </div>
+      <div class="agent-name">${a.label}</div>
+    `;
+    scene.appendChild(div);
+  });
+
+  renderLines();
+  renderStars();
+}
+
+// ====== SVG LINES ======
+function renderLines() {
+  const svg = document.getElementById('lines-svg');
+  const w = sceneWidth, h = sceneHeight;
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  svg.innerHTML = '';
+
+  const getPos = (id) => {
+    const a = AGENTS.find(x => x.id === id);
+    if (!a) return null;
+    return worldToScreen(a.pos[0], a.pos[1], a.pos[2]);
+  };
+
+  AGENTS.forEach(a => {
+    a.conns.forEach(t => {
+      let tid = t, dashed = false;
+      if (t.endsWith('-rev')) { tid = t.replace('-rev',''); dashed = true; }
+      if (t.endsWith('-feed')) { tid = t.replace('-feed',''); dashed = true; }
+      const pA = getPos(a.id), pB = getPos(tid);
+      if (!pA || !pB) return;
+
+      // Curve via midpoint
+      const mx = (pA.x + pB.x) / 2;
+      const my = (pA.y + pB.y) / 2 - 20;
+      const d = `M${pA.x},${pA.y} Q${mx},${my} ${pB.x},${pB.y}`;
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', d);
+      path.setAttribute('stroke', a.color);
+      path.setAttribute('stroke-opacity', dashed ? '0.2' : '0.3');
+      if (dashed) {
+        path.setAttribute('stroke-dasharray', '5,5');
+        path.setAttribute('stroke-dashoffset', '3');
+      }
+      svg.appendChild(path);
+    });
+  });
+}
+
+// ====== STARS BACKGROUND ======
+function renderStars() {
+  const canvas = document.getElementById('starsCanvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = sceneWidth;
+  canvas.height = sceneHeight;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (let i = 0; i < 200; i++) {
+    const x = Math.random() * canvas.width;
+    const y = Math.random() * canvas.height;
+    const r = Math.random() * 1.2 + 0.3;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(136,136,170,${Math.random() * 0.3 + 0.1})`;
+    ctx.fill();
+  }
+}
+
+// ====== COLOR HELPERS ======
 function lighten(hex, pct) {
   const n = parseInt(hex.slice(1), 16);
   const r = Math.min(255, (n>>16) + pct);
@@ -325,205 +514,24 @@ function darken(hex, pct) {
   return `#${((r<<16)|(g<<8)|b).toString(16).padStart(6,'0')}`;
 }
 
-// ====== NAME LABEL SPRITE ======
-function createLabelSprite(name, color) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 64;
-  const ctx = canvas.getContext('2d');
-  ctx.font = 'bold 36px -apple-system, BlinkMacSystemFont, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.shadowColor = 'rgba(0,0,0,0.7)';
-  ctx.shadowBlur = 6;
-  ctx.fillStyle = '#ffffff';
-  ctx.fillText(name, 256, 34);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.needsUpdate = true;
-  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, sizeAttenuation: true });
-  const sprite = new THREE.Sprite(mat);
-  sprite.scale.set(2.4, 0.3, 1);
-  return sprite;
-}
-
-// ====== SCENE SETUP ======
-const container = document.getElementById('canvas-wrap');
-const w = container.clientWidth;
-const h = container.clientHeight;
-
-const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0x08081c, 20, 30);
-
-const camera = new THREE.PerspectiveCamera(42, w/h, 0.1, 50);
-camera.position.set(2, 6, 14);
-camera.lookAt(1, 0, 0);
-
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-renderer.setSize(w, h);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.2;
-container.appendChild(renderer.domElement);
-
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.08;
-controls.target.set(1, 0, 0);
-controls.minDistance = 4;
-controls.maxDistance = 30;
-controls.maxPolarAngle = Math.PI / 1.8;
-
-// Lights
-scene.add(new THREE.AmbientLight(0x222244, 0.5));
-const dl = new THREE.DirectionalLight(0xffffff, 1.2);
-dl.position.set(5, 10, 7); scene.add(dl);
-const pl = new THREE.PointLight(0x7c5cfc, 0.8, 25);
-pl.position.set(1, 0, 0); scene.add(pl);
-scene.add(new THREE.DirectionalLight(0x7c5cfc, 0.3).setPosition(-5, -3, -5));
-
-// Stars
-const starGeo = new THREE.BufferGeometry();
-const starP = new Float32Array(2500*3);
-for(let i=0;i<2500*3;i++) starP[i]=(Math.random()-0.5)*70;
-starGeo.setAttribute('position', new THREE.BufferAttribute(starP, 3));
-scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({color:0x8888aa,size:0.03,transparent:true,opacity:0.5})));
-
-// Ground grid
-const g = new THREE.GridHelper(22, 22, 0x7c5cfc, 0x7c5cfc);
-g.position.y = -0.6;
-g.material.transparent = true; g.material.opacity = 0.06;
-scene.add(g);
-
-// ====== CREATE AGENT NODES ======
-const agentMeshes = {};
-const agentInfo = {};
-
-AGENTS.forEach(a => {
-  const group = new THREE.Group();
-  group.position.set(a.pos[0], a.pos[1], a.pos[2]);
-
-  // Avatar sprite
-  const avatar = createAvatarSprite(a);
-  group.add(avatar);
-
-  // Name label
-  const label = createLabelSprite(a.label, a.color);
-  label.position.y = -1.1;
-  group.add(label);
-
-  // Click hitbox (invisible larger sphere for raycasting)
-  const hit = new THREE.Mesh(
-    new THREE.SphereGeometry(0.65, 8, 8),
-    new THREE.MeshBasicMaterial({ visible: false })
-  );
-  hit.userData.isHitbox = true;
-  group.add(hit);
-
-  scene.add(group);
-  agentMeshes[a.id] = group;
-  agentInfo[a.id] = a;
-});
-
-// ====== CONNECTION LINES ======
-const posMap = {};
-AGENTS.forEach(a => { posMap[a.id] = new THREE.Vector3(a.pos[0], a.pos[1], a.pos[2]); });
-const lineMat = (c, d) => new THREE.LineBasicMaterial({ color: c, transparent: true, opacity: d ? 0.15 : 0.25 });
-
-AGENTS.forEach(a => {
-  a.conns.forEach(t => {
-    let tid = t, dashed = false;
-    if (t.endsWith('-rev')) { tid = t.replace('-rev',''); dashed = true; }
-    if (t.endsWith('-feed')) { tid = t.replace('-feed',''); dashed = true; }
-    if (!posMap[tid]) return;
-    const pA = posMap[a.id], pB = posMap[tid];
-    const mid = new THREE.Vector3((pA.x+pB.x)/2, (pA.y+pB.y)/2+0.4, (pA.z+pB.z)/2);
-    const curve = new THREE.QuadraticBezierCurve3(pA, mid, pB);
-    const pts = curve.getPoints(24);
-    const geo = new THREE.BufferGeometry().setFromPoints(pts);
-    const mat = dashed
-      ? new THREE.LineDashedMaterial({ color: a.color, dashSize: 0.08, gapSize: 0.06, transparent: true, opacity: 0.2 })
-      : lineMat(a.color);
-    const line = new THREE.Line(geo, mat);
-    if (dashed) line.computeLineDistances();
-    scene.add(line);
+// ====== FLOATING ANIMATION ======
+function animateFloats() {
+  const cards = document.querySelectorAll('.agent-card');
+  const t = Date.now() / 1000;
+  cards.forEach((card, i) => {
+    const id = card.dataset.agentId;
+    const a = AGENTS.find(x => x.id === id);
+    if (!a) return;
+    const s = worldToScreen(a.pos[0], a.pos[1], a.pos[2]);
+    const floatY = Math.sin(t * 0.4 + i * 0.7) * 3;
+    const scale = s.z;
+    card.style.transform = `translate(-50%, calc(-50% + ${floatY}px)) scale(${scale})`;
   });
-});
-
-// ====== FLOATING ANIMATION DATA ======
-AGENTS.forEach(a => {
-  const m = agentMeshes[a.id];
-  if (!m) return;
-  m.userData.baseY = a.pos[1];
-  m.userData.phase = Math.random() * Math.PI * 2;
-});
-
-// ====== CLICK / RAYCAST ======
-const raycaster = new THREE.Raycaster();
-const pointer = new THREE.Vector2();
-let selectedAgent = null;
-let downPos = { x:0, y:0 };
-let isDrag = false;
-
-renderer.domElement.addEventListener('pointerdown', e => {
-  downPos = { x: e.clientX, y: e.clientY };
-  isDrag = false;
-});
-renderer.domElement.addEventListener('pointermove', e => {
-  if (Math.abs(e.clientX - downPos.x) > 5 || Math.abs(e.clientY - downPos.y) > 5) isDrag = true;
-});
-renderer.domElement.addEventListener('pointerup', e => {
-  if (isDrag) return;
-  const rect = renderer.domElement.getBoundingClientRect();
-  pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-  pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-  raycaster.setFromCamera(pointer, camera);
-
-  const hits = raycaster.intersectObjects(scene.children, true);
-  let found = null;
-  for (const hit of hits) {
-    let obj = hit.object;
-    while (obj) {
-      for (const [id, mesh] of Object.entries(agentMeshes)) {
-        if (mesh === obj || (mesh.children.includes(obj) && obj.userData.isHitbox)) {
-          found = id;
-          break;
-        }
-      }
-      if (found) break;
-      obj = obj.parent;
-    }
-    if (found) break;
-  }
-  if (found) selectAgent(found);
-  else deselectAgent();
-});
-
-function selectAgent(id) {
-  const a = AGENTS.find(x => x.id === id);
-  if (!a) return;
-  selectedAgent = id;
-  const panel = document.getElementById('infoPanel');
-  document.getElementById('ipIcon').textContent = a.icon;
-  document.getElementById('ipName').textContent = a.label;
-  document.getElementById('ipGroup').textContent = GROUP_NAMES[a.group] || a.group;
-  document.getElementById('ipDesc').textContent = a.desc;
-  const conns = a.conns.filter(c => !c.endsWith('-feed'));
-  const names = conns.map(c => c.replace('-rev','')).map(c => AGENTS.find(x=>x.id===c)).filter(Boolean).map(x=>x.icon+' '+x.label);
-  document.getElementById('ipConns').innerHTML = names.length ? '→ <span>'+names.join('</span>, <span>')+'</span>' : '';
-  panel.classList.add('visible');
-
-  // Highlight
-  AGENTS.forEach(x => { const m=agentMeshes[x.id]; if(m) m.children.forEach(c => { if(c.isSprite) c.material.opacity = x.id===id ? 1 : 0.5; }); });
-}
-
-function deselectAgent() {
-  selectedAgent = null;
-  document.getElementById('infoPanel').classList.remove('visible');
-  AGENTS.forEach(x => { const m=agentMeshes[x.id]; if(m) m.children.forEach(c => { if(c.isSprite) c.material.opacity = 1; }); });
+  requestAnimationFrame(animateFloats);
 }
 
 // ====== HISTORY ======
-const HISTORY_TEMPLATE = [
+const HISTORY = [
   { time:'10:15', from:'translator', to:'planner', task:'Разбить задачу на шаги: «сделать чат-бота для Telegram»' },
   { time:'10:17', from:'planner', to:'analyst', task:'Проверить план из 7 шагов на полноту и логику' },
   { time:'10:19', from:'analyst', to:'delegator', task:'План ✅. Распределить задачи между исполнителями' },
@@ -538,24 +546,23 @@ const HISTORY_TEMPLATE = [
   { time:'10:30', from:'reviewer', to:'analyst', task:'Всё готово. Проверь результат целиком.' },
   { time:'10:31', from:'analyst', to:'reporter', task:'✅ Результат соответствует плану. Формируй отчёт.' },
   { time:'10:32', from:'reporter', to:'default', task:'Финальный отчёт готов к отправке пользователю.' },
-  { time:'10:33', from:'default', to:'☀️ Пользователь', task:'Чат-бот готов! Лови результат 🚀' },
+  { time:'10:33', from:'default', to:'☀️ Пользователь', task:'Чат-бот готов! 🚀' },
 ];
 
 function renderHistory() {
   const body = document.getElementById('historyBody');
   body.innerHTML = '';
-  HISTORY_TEMPLATE.forEach(item => {
+  HISTORY.forEach(item => {
     const from = AGENTS.find(a => a.id === item.from);
     const to = AGENTS.find(a => a.id === item.to);
     if (!from || !to) return;
     const div = document.createElement('div');
     div.className = 'history-item';
-    const color = from.color;
     div.innerHTML = `
       <div class="hi-time">${item.time}</div>
       <div class="hi-content">
         <div class="hi-flow">
-          <span class="hi-from" style="background:${color}33;color:${color}">${from.icon} ${from.label}</span>
+          <span class="hi-from" style="background:${from.color}33;color:${from.color}">${from.icon} ${from.label}</span>
           <span class="hi-arrow">→</span>
           <span class="hi-to" style="background:${to.color}33;color:${to.color}">${to.icon} ${to.label}</span>
         </div>
@@ -565,36 +572,17 @@ function renderHistory() {
     body.appendChild(div);
   });
 }
-renderHistory();
 
-// ====== RESIZE ======
+// ====== RESIZE HANDLER ======
 window.addEventListener('resize', () => {
-  const w2 = container.clientWidth;
-  const h2 = container.clientHeight;
-  if (w2 === 0 || h2 === 0) return;
-  camera.aspect = w2 / h2;
-  camera.updateProjectionMatrix();
-  renderer.setSize(w2, h2);
+  getSceneSize();
+  renderAgents();
 });
 
-// ====== ANIMATION LOOP ======
-const clock = new THREE.Clock();
-function animate() {
-  requestAnimationFrame(animate);
-  const t = clock.getElapsedTime();
-  AGENTS.forEach(a => {
-    const m = agentMeshes[a.id];
-    if (!m || !m.userData) return;
-    m.position.y = m.userData.baseY + Math.sin(t * 0.5 + m.userData.phase) * 0.06;
-    // Gentle rotation of avatar
-    m.children.forEach(c => {
-      if (c.isSprite) c.material.rotation = t * 0.02;
-    });
-  });
-  controls.update();
-  renderer.render(scene, camera);
-}
-animate();
+// ====== INIT ======
+renderAgents();
+renderHistory();
+animateFloats();
 </script>
 </body>
 </html>
