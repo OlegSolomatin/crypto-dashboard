@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MOE — Архитектура агентов</title>
+<meta name="apple-mobile-web-app-title" content="MOE">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon-dark.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon-light-180.png">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#08081c;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#e0e0f0;height:100dvh;width:100vw;touch-action:none}
+#canvas-wrap{width:100vw;height:100dvh;position:fixed;top:0;left:0;z-index:1}
+
+/* Header overlay */
+.header{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;gap:12px;padding:12px 16px;background:linear-gradient(180deg,rgba(8,8,28,.9) 0%,transparent 100%);pointer-events:none}
+.header>*{pointer-events:auto}
+.back-btn{display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;background:rgba(15,15,46,.8);border:1px solid rgba(124,92,252,.2);color:#e0e0f0;text-decoration:none;font-size:18px;transition:all .2s;flex-shrink:0;backdrop-filter:blur(4px)}
+.back-btn:hover{background:#14143a;border-color:#7c5cfc}
+.title{font-size:17px;font-weight:700;text-shadow:0 2px 8px rgba(0,0,0,.5)}
+.sub{font-size:11px;color:#8888aa;margin-top:1px}
+
+/* Info panel */
+.info-panel{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:10;background:rgba(15,15,46,.92);border:1px solid rgba(124,92,252,.2);border-radius:16px;padding:14px 18px;backdrop-filter:blur(8px);width:calc(100% - 32px);max-width:400px;transition:all .4s cubic-bezier(.4,0,.2,1);opacity:0;transform:translateX(-50%) translateY(20px);pointer-events:none}
+.info-panel.visible{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+.info-panel .ip-name{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px}
+.info-panel .ip-group{font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(124,92,252,.15);color:#7c5cfc;margin-left:auto}
+.info-panel .ip-desc{font-size:12px;color:#8888aa;margin-top:6px;line-height:1.5}
+.info-panel .ip-connections{font-size:11px;color:#8888aa;margin-top:6px}
+.info-panel .ip-connections span{color:#10b981}
+
+/* Loading */
+.loading{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:5;text-align:center;color:#8888aa;font-size:14px;transition:opacity .8s}
+.loading .spinner{width:32px;height:32px;border:3px solid rgba(124,92,252,.15);border-top-color:#7c5cfc;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading.hidden{opacity:0;pointer-events:none}
+
+/* Controls hint */
+.hint{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);z-index:5;font-size:11px;color:rgba(136,136,170,.5);text-align:center;transition:opacity 2s;animation:fadeOut 6s forwards}
+@keyframes fadeOut{0%,70%{opacity:1}100%{opacity:0}}
+
+/* Legend */
+.legend{position:fixed;top:70px;right:12px;z-index:10;background:rgba(15,15,46,.85);border:1px solid rgba(124,92,252,.12);border-radius:12px;padding:10px 12px;backdrop-filter:blur(4px);font-size:10px;line-height:1.8}
+.legend-item{display:flex;align-items:center;gap:6px}
+.legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot-core{background:#7c5cfc;box-shadow:0 0 6px #7c5cfc}
+.dot-worker{background:#3b82f6;box-shadow:0 0 6px #3b82f6}
+.dot-qa{background:#10b981;box-shadow:0 0 6px #10b981}
+.dot-output{background:#f59e0b;box-shadow:0 0 6px #f59e0b}
+.dot-support{background:#ef4444;box-shadow:0 0 6px #ef4444}
+</style>
+</head>
+<body>
+
+<div class="loading" id="loading">
+  <div class="spinner"></div>
+  Загрузка визуализации...
+</div>
+
+<div class="header">
+  <a class="back-btn" href="/">←</a>
+  <div>
+    <div class="title">🤖 Архитектура агентов</div>
+    <div class="sub">18 агентов · 4 уровня · Интерактивная 3D-схема</div>
+  </div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><span class="legend-dot dot-core"></span> Ядро</div>
+  <div class="legend-item"><span class="legend-dot dot-worker"></span> Исполнители</div>
+  <div class="legend-item"><span class="legend-dot dot-qa"></span> Контроль</div>
+  <div class="legend-item"><span class="legend-dot dot-output"></span> Результат</div>
+  <div class="legend-item"><span class="legend-dot dot-support"></span> Поддержка</div>
+</div>
+
+<div class="hint" id="hint">🖱 Вращай и зуми — тащи пальцем</div>
+
+<div class="info-panel" id="infoPanel">
+  <div style="display:flex;align-items:flex-start">
+    <div>
+      <div class="ip-name"><span id="ipIcon">🤖</span> <span id="ipName">agent</span></div>
+      <div class="ip-group" id="ipGroup">pipeline</div>
+    </div>
+  </div>
+  <div class="ip-desc" id="ipDesc">Описание</div>
+  <div class="ip-connections" id="ipConns"></div>
+</div>
+
+<div id="canvas-wrap"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// Hide loading
+document.getElementById('loading').classList.add('hidden');
+
+// Agent definitions
+const AGENTS = [
+  // Core pipeline
+  { id:'translator', label:'Translator', icon:'🌐', pos:[-6,0,0], group:'core', desc:'Перевод и форматирование запросов на входе в пайплайн',
+    conns:['planner'], color:'#7c5cfc' },
+  { id:'planner', label:'Planner', icon:'📋', pos:[-4,0,0], group:'core', desc:'Декомпозиция задачи на атомарные шаги',
+    conns:['analyst'], color:'#7c5cfc' },
+  { id:'analyst', label:'Analyst', icon:'🧠', pos:[-2,0,0], group:'core', desc:'Глубокий анализ плана: 6 критериев оценки',
+    conns:['delegator','reviewer-rev'], color:'#7c5cfc' },
+  { id:'delegator', label:'Delegator', icon:'🎯', pos:[0,0,0], group:'core', desc:'Распределение задач между исполнителями',
+    conns:['preloader','coder','designer','data-analyst','devops','trading-analyst'], color:'#7c5cfc' },
+
+  // Workers (parallel)
+  { id:'preloader', label:'Preloader', icon:'📥', pos:[1.6,3.2,0], group:'worker', desc:'Подготовка данных и контекста перед работой',
+    conns:['reviewer'], color:'#3b82f6' },
+  { id:'coder', label:'Coder', icon:'💻', pos:[1.6,1.8,0], group:'worker', desc:'Написание кода на Python, JS, C',
+    conns:['reviewer','tester'], color:'#3b82f6' },
+  { id:'designer', label:'Designer', icon:'🎨', pos:[1.6,0.6,0], group:'worker', desc:'UI/UX дизайн, HTML, CSS, SVG',
+    conns:['reviewer'], color:'#3b82f6' },
+  { id:'data-analyst', label:'Data Analyst', icon:'📈', pos:[1.6,-0.6,0], group:'worker', desc:'Анализ данных, метрик, статистики',
+    conns:['reviewer'], color:'#3b82f6' },
+  { id:'devops', label:'DevOps', icon:'⚙️', pos:[1.6,-1.8,0], group:'worker', desc:'Развёртывание, CI/CD, инфраструктура',
+    conns:['reviewer'], color:'#3b82f6' },
+  { id:'trading-analyst', label:'Trading An.', icon:'📊', pos:[1.6,-3.2,0], group:'worker', desc:'Торговые сигналы и рыночный анализ',
+    conns:['reviewer'], color:'#3b82f6' },
+
+  // QA loop
+  { id:'reviewer', label:'Reviewer', icon:'🔍', pos:[4.5,0,0], group:'qa', desc:'Контроль качества: 7 критериев проверки',
+    conns:['analyst-rev','reporter'], color:'#10b981' },
+  { id:'tester', label:'Tester', icon:'🧪', pos:[4.5,2.5,0], group:'qa', desc:'Тестирование кода: синтаксис, edge cases',
+    conns:['reviewer'], color:'#10b981' },
+  { id:'technical-writer', label:'Tech Writer', icon:'📖', pos:[4.5,-1.8,0], group:'qa', desc:'Документация, README, API, changelog',
+    conns:['reviewer'], color:'#10b981' },
+  { id:'security-auditor', label:'Security', icon:'🛡️', pos:[4.5,-3.5,0], group:'qa', desc:'8 векторов проверки безопасности',
+    conns:['reviewer'], color:'#10b981' },
+
+  // Output
+  { id:'reporter', label:'Reporter', icon:'📝', pos:[7,0,0], group:'output', desc:'Финальное форматирование сводного отчёта',
+    conns:['default'], color:'#f59e0b' },
+  { id:'default', label:'Default', icon:'🤖', pos:[9,0,0], group:'output', desc:'Главный агент — общается с пользователем',
+    conns:[], color:'#f59e0b' },
+
+  // Support
+  { id:'cost-tracker', label:'Cost Tracker', icon:'💰', pos:[-3,2.5,3], group:'support', desc:'Мониторинг расхода токенов и контекста',
+    conns:[], color:'#ef4444' },
+  { id:'health-monitor', label:'Health', icon:'🩺', pos:[-3,-2.5,3], group:'support', desc:'Проверка живых агентов, профилей, API',
+    conns:[], color:'#ef4444' },
+];
+
+const GROUP_COLORS = {
+  core: 0x7c5cfc,
+  worker: 0x3b82f6,
+  qa: 0x10b981,
+  output: 0xf59e0b,
+  support: 0xef4444,
+};
+const GROUP_NAMES = {
+  core: 'Ядро пайплайна',
+  worker: 'Исполнители',
+  qa: 'Контроль качества',
+  output: 'Вывод',
+  support: 'Поддержка',
+};
+
+// Scene setup
+const container = document.getElementById('canvas-wrap');
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x08081c, 18, 28);
+
+// Camera
+const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 50);
+camera.position.set(2, 6, 14);
+camera.lookAt(1, 0, 0);
+
+// Renderer
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+container.appendChild(renderer.domElement);
+
+// Controls
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.target.set(1, 0, 0);
+controls.minDistance = 4;
+controls.maxDistance = 30;
+controls.maxPolarAngle = Math.PI / 1.8;
+
+// Lights
+const ambientLight = new THREE.AmbientLight(0x222244, 0.6);
+scene.add(ambientLight);
+
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+directionalLight.position.set(5, 10, 7);
+scene.add(directionalLight);
+
+const pointLight = new THREE.PointLight(0x7c5cfc, 1, 20);
+pointLight.position.set(0, 0, 0);
+scene.add(pointLight);
+
+const fillLight = new THREE.DirectionalLight(0x7c5cfc, 0.4);
+fillLight.position.set(-5, -3, -5);
+scene.add(fillLight);
+
+// Stars
+const starsGeo = new THREE.BufferGeometry();
+const starsCount = 2000;
+const starPos = new Float32Array(starsCount * 3);
+for (let i = 0; i < starsCount * 3; i++) starPos[i] = (Math.random() - 0.5) * 60;
+starsGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+const starsMat = new THREE.PointsMaterial({ color: 0x8888aa, size: 0.04, transparent: true, opacity: 0.6 });
+const stars = new THREE.Points(starsGeo, starsMat);
+scene.add(stars);
+
+// Ground grid
+const gridHelper = new THREE.GridHelper(20, 20, 0x7c5cfc, 0x7c5cfc);
+gridHelper.position.y = -0.5;
+gridHelper.material.transparent = true;
+gridHelper.material.opacity = 0.08;
+scene.add(gridHelper);
+
+// Agent spheres
+const agentMeshes = {};
+const agentGroups = {};
+
+AGENTS.forEach((a, i) => {
+  const group = new THREE.Group();
+  group.position.set(a.pos[0], a.pos[1], a.pos[2]);
+
+  // Glow ring
+  const ringGeo = new THREE.RingGeometry(0.55, 0.75, 32);
+  const ringMat = new THREE.MeshBasicMaterial({
+    color: a.color,
+    transparent: true,
+    opacity: 0.15,
+    side: THREE.DoubleSide,
+  });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = -0.05;
+  group.add(ring);
+
+  // Bigger glow ring (outer)
+  const ringOuterGeo = new THREE.RingGeometry(0.8, 1.0, 32);
+  const ringOuterMat = new THREE.MeshBasicMaterial({
+    color: a.color,
+    transparent: true,
+    opacity: 0.06,
+    side: THREE.DoubleSide,
+  });
+  const ringOuter = new THREE.Mesh(ringOuterGeo, ringOuterMat);
+  ringOuter.rotation.x = -Math.PI / 2;
+  ringOuter.position.y = -0.04;
+  group.add(ringOuter);
+
+  // Sphere
+  const sphereGeo = new THREE.SphereGeometry(0.48, 24, 24);
+  const sphereMat = new THREE.MeshPhysicalMaterial({
+    color: a.color,
+    metalness: 0.1,
+    roughness: 0.3,
+    clearcoat: 0.3,
+    clearcoatRoughness: 0.4,
+    emissive: a.color,
+    emissiveIntensity: 0.08,
+  });
+  const sphere = new THREE.Mesh(sphereGeo, sphereMat);
+  group.add(sphere);
+
+  // Glow aura
+  const glowGeo = new THREE.SphereGeometry(0.6, 16, 16);
+  const glowMat = new THREE.MeshBasicMaterial({
+    color: a.color,
+    transparent: true,
+    opacity: 0.06,
+  });
+  const glow = new THREE.Mesh(glowGeo, glowMat);
+  group.add(glow);
+
+  // Label (sprite)
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = 512;
+  canvas.height = 128;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Emoji
+  ctx.font = '48px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(a.icon, 80, 72);
+
+  // Name
+  ctx.font = 'bold 32px -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = 'rgba(0,0,0,0.6)';
+  ctx.shadowBlur = 6;
+  ctx.fillText(a.label, 256, 72);
+  ctx.shadowBlur = 0;
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
+  const sprite = new THREE.Sprite(spriteMat);
+  sprite.scale.set(2.6, 0.65, 1);
+  sprite.position.y = -0.85;
+  group.add(sprite);
+
+  scene.add(group);
+  agentMeshes[a.id] = group;
+  agentGroups[a.id] = a;
+});
+
+// Connection lines
+function createConnection(posA, posB, color, dashed = false) {
+  const points = [];
+  const mid = new THREE.Vector3(
+    (posA.x + posB.x) / 2,
+    (posA.y + posB.y) / 2 + 0.3,
+    (posA.z + posB.z) / 2,
+  );
+  // Curve
+  const curve = new THREE.QuadraticBezierCurve3(posA, mid, posB);
+  const curvePoints = curve.getPoints(20);
+
+  const geo = new THREE.BufferGeometry().setFromPoints(curvePoints);
+  let mat;
+  if (dashed) {
+    mat = new THREE.LineDashedMaterial({
+      color, dashSize: 0.08, gapSize: 0.06, transparent: true, opacity: 0.3,
+    });
+  } else {
+    mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.25 });
+  }
+  const line = new THREE.Line(geo, mat);
+  if (dashed) line.computeLineDistances();
+  scene.add(line);
+  return line;
+}
+
+// Build connections
+const posMap = {};
+AGENTS.forEach(a => { posMap[a.id] = new THREE.Vector3(a.pos[0], a.pos[1], a.pos[2]); });
+
+AGENTS.forEach(a => {
+  a.conns.forEach(target => {
+    let targetId = target;
+    let dashed = false;
+    if (target.endsWith('-rev')) {
+      targetId = target.replace('-rev', '');
+      dashed = true;
+    }
+    if (!posMap[targetId]) return;
+    const color = a.color;
+    createConnection(posMap[a.id], posMap[targetId], color, dashed);
+  });
+});
+
+// Feed lines from cost-tracker / health-monitor to delegator
+function createFeedLine(from, to, color) {
+  const pA = posMap[from];
+  const pB = posMap[to];
+  if (!pA || !pB) return;
+  const mid = new THREE.Vector3(
+    (pA.x + pB.x) / 2,
+    (pA.y + pB.y) / 2,
+    (pA.z + pB.z) / 2,
+  );
+  const curve = new THREE.QuadraticBezierCurve3(pA, mid, pB);
+  const pts = curve.getPoints(20);
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  const mat = new THREE.LineDashedMaterial({
+    color, dashSize: 0.05, gapSize: 0.08, transparent: true, opacity: 0.15,
+  });
+  const line = new THREE.Line(geo, mat);
+  line.computeLineDistances();
+  scene.add(line);
+}
+createFeedLine('cost-tracker', 'delegator', 0xef4444);
+createFeedLine('health-monitor', 'default', 0xef4444);
+
+// Floating animation
+AGENTS.forEach(a => {
+  const mesh = agentMeshes[a.id];
+  if (!mesh) return;
+  mesh.userData = { baseY: a.pos[1], phase: Math.random() * Math.PI * 2 };
+});
+
+// Raycaster for click
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+let selectedAgent = null;
+let isPointerDown = false;
+let pointerMoved = false;
+
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  isPointerDown = true;
+  pointerMoved = false;
+  pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+  pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+});
+renderer.domElement.addEventListener('pointermove', () => { if (isPointerDown) pointerMoved = true; });
+renderer.domElement.addEventListener('pointerup', (e) => {
+  if (pointerMoved) { isPointerDown = false; return; }
+  isPointerDown = false;
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+  raycaster.setFromCamera(pointer, camera);
+  const meshes = AGENTS.map(a => agentMeshes[a.id]).filter(Boolean);
+  const intersects = raycaster.intersectObjects(meshes, true);
+  if (intersects.length > 0) {
+    let hit = intersects[0].object;
+    while (hit.parent && !AGENTS.find(a => agentMeshes[a.id] === hit)) hit = hit.parent;
+    const found = AGENTS.find(a => agentMeshes[a.id] === hit);
+    if (found) selectAgent(found.id);
+  }
+});
+
+function selectAgent(id) {
+  const a = AGENTS.find(x => x.id === id);
+  if (!a) return;
+  selectedAgent = id;
+  const panel = document.getElementById('infoPanel');
+  document.getElementById('ipIcon').textContent = a.icon;
+  document.getElementById('ipName').textContent = a.label;
+  document.getElementById('ipGroup').textContent = GROUP_NAMES[a.group] || a.group;
+  document.getElementById('ipDesc').textContent = a.desc;
+
+  const connNames = a.conns
+    .map(c => c.replace('-rev',''))
+    .map(c => AGENTS.find(x => x.id === c))
+    .filter(Boolean)
+    .map(x => x.icon + ' ' + x.label);
+  document.getElementById('ipConns').innerHTML = connNames.length
+    ? '→ <span>' + connNames.join('</span>, <span>') + '</span>'
+    : '';
+  panel.classList.add('visible');
+
+  // Reset all emissive
+  AGENTS.forEach(x => {
+    const mesh = agentMeshes[x.id];
+    if (!mesh) return;
+    mesh.children.forEach(c => {
+      if (c.isMesh && c.material && c.material.emissiveIntensity !== undefined) {
+        c.material.emissiveIntensity = 0.08;
+      }
+    });
+  });
+  // Highlight selected
+  const selMesh = agentMeshes[id];
+  if (selMesh) {
+    selMesh.children.forEach(c => {
+      if (c.isMesh && c.material && c.material.emissiveIntensity !== undefined) {
+        c.material.emissiveIntensity = 0.4;
+      }
+    });
+  }
+}
+
+// Tap on empty space to close
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+});
+renderer.domElement.addEventListener('click', (e) => {
+  if (pointerMoved) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  const px = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  const py = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(new THREE.Vector2(px, py), camera);
+  const hits = raycaster.intersectObjects(
+    AGENTS.map(a => agentMeshes[a.id]).filter(Boolean), true
+  );
+  if (!hits.length) {
+    document.getElementById('infoPanel').classList.remove('visible');
+    selectedAgent = null;
+    AGENTS.forEach(x => {
+      const mesh = agentMeshes[x.id];
+      if (!mesh) return;
+      mesh.children.forEach(c => {
+        if (c.isMesh && c.material && c.material.emissiveIntensity !== undefined) {
+          c.material.emissiveIntensity = 0.08;
+        }
+      });
+    });
+  }
+});
+
+// Resize
+window.addEventListener('resize', () => {
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+});
+
+// Animate
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+
+  // Float agents
+  AGENTS.forEach(a => {
+    const mesh = agentMeshes[a.id];
+    if (!mesh || !mesh.userData) return;
+    const floatY = Math.sin(t * 0.5 + mesh.userData.phase) * 0.08;
+    mesh.position.y = mesh.userData.baseY + floatY;
+    mesh.children.forEach(c => {
+      if (c.isMesh && c.geometry && c.geometry.type === 'RingGeometry') {
+        c.rotation.z = t * 0.1 + mesh.userData.phase;
+      }
+    });
+  });
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>
