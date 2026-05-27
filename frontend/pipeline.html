@@ -59,7 +59,6 @@ body{background:#08081c;overflow:hidden;font-family:-apple-system,BlinkMacSystem
 .agent-card{
   position:absolute;cursor:pointer;user-select:none;
   -webkit-tap-highlight-color:transparent;
-  transition:opacity .3s;
   transform-origin:center center;
   will-change:transform;
 }
@@ -213,6 +212,8 @@ getSceneSize(); window.addEventListener('resize',()=>{getSceneSize();renderAll()
 // 3D rotation
 let rotX = 0.15, rotY = 0;
 let targetRotX = 0.15, targetRotY = 0;
+let autoRotate = true;
+let autoRotateTimer = null;
 
 // ====== TRUE 3D PROJECTION ======
 function project3D(x, y, z) {
@@ -264,6 +265,9 @@ updatePositions();
 
 // ====== UPDATE POSITIONS (every frame) ======
 function updatePositions() {
+  // Auto-rotation (only Y axis, X is user-controlled)
+  if (autoRotate) targetRotY += 0.002;
+
   // Smooth rotation
   displayRotX += (targetRotX - displayRotX) * 0.08;
   displayRotY += (targetRotY - displayRotY) * 0.08;
@@ -282,6 +286,12 @@ function updatePositions() {
     let x2 = x1;
     let y2 = y1 * Math.cos(rx) - z1 * Math.sin(rx);
     let z2 = y1 * Math.sin(rx) + z1 * Math.cos(rx);
+
+    // Depth of field: blur + opacity based on z-distance
+    const blurAmt = Math.max(0, (z2 - 2) * 0.4);
+    card.style.filter = blurAmt > 0 ? `blur(${blurAmt}px)` : 'none';
+    const op = Math.max(0.4, Math.min(1, 1 - (z2 + 5) * 0.03));
+    card.style.opacity = op;
 
     const perspective = 900;
     const sc = perspective / (perspective + z2);
@@ -323,46 +333,92 @@ function updateLines() {
       const pB = project3D(to.pos[0], to.pos[1], to.pos[2]);
       const zAvg = (from.pos[2] + to.pos[2]) / 2;
 
-      ctx.beginPath();
-      // Curve
+      // Pulse effect on line width
+      const pulse = 0.85 + 0.15 * Math.sin(Date.now() / 300);
+      const baseWidth = 1.2 * Math.min(pA.scale, pB.scale);
+      const lineW = baseWidth * pulse;
+
+      // Gradient stroke
       const mx = (pA.x + pB.x) / 2;
       const my = (pA.y + pB.y) / 2 - 15 * Math.min(pA.scale, pB.scale);
+
+      // Glow layer (thick, semi-transparent)
+      ctx.beginPath();
       ctx.moveTo(pA.x, pA.y);
       ctx.quadraticCurveTo(mx, my, pB.x, pB.y);
       ctx.strokeStyle = a.color;
-      ctx.globalAlpha = dashed ? 0.15 : 0.25;
-      ctx.lineWidth = 1.2 * Math.min(pA.scale, pB.scale);
-      if (dashed) {
-        ctx.setLineDash([4, 4]);
-        ctx.lineDashOffset = Date.now() / 100;
-      } else {
-        ctx.setLineDash([]);
-      }
+      ctx.globalAlpha = 0.08;
+      ctx.lineWidth = lineW * 3;
+      if (dashed) { ctx.setLineDash([4, 4]); ctx.lineDashOffset = Date.now() / 100; }
+      else { ctx.setLineDash([]); }
       ctx.stroke();
+
+      // Main line with gradient
+      const grad = ctx.createLinearGradient(pA.x, pA.y, pB.x, pB.y);
+      grad.addColorStop(0, from.color);
+      grad.addColorStop(1, to.color);
+
+      ctx.beginPath();
+      ctx.moveTo(pA.x, pA.y);
+      ctx.quadraticCurveTo(mx, my, pB.x, pB.y);
+      ctx.strokeStyle = grad;
+      ctx.globalAlpha = dashed ? 0.15 : 0.25;
+      ctx.lineWidth = lineW;
+      if (dashed) { ctx.setLineDash([4, 4]); ctx.lineDashOffset = Date.now() / 100; }
+      else { ctx.setLineDash([]); }
+      ctx.stroke();
+
       ctx.globalAlpha = 1;
       ctx.setLineDash([]);
     });
   });
 }
 
-// ====== STARS ======
-function drawStars() {
-  const c = document.createElement('canvas');
-  c.width = W; c.height = H;
-  const ctx = c.getContext('2d');
-  for(let i=0;i<200;i++){
-    const x=Math.random()*W, y=Math.random()*H, r=Math.random()*1.2+0.3;
-    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
-    ctx.fillStyle=`rgba(136,136,170,${Math.random()*0.3+0.1})`;
-    ctx.fill();
+// ====== STARS (animated) ======
+let starPositions = [];
+function initStars() {
+  starPositions = [];
+  for (let i = 0; i < 200; i++) {
+    starPositions.push({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      r: Math.random() * 1.2 + 0.3,
+      alpha: Math.random() * 0.3 + 0.1,
+      speed: Math.random() * 0.3 + 0.1
+    });
   }
-  // Create img element and set as background
-  const img = new Image();
-  img.src = c.toDataURL();
-  img.onload = () => {
-    document.getElementById('scene-wrap').style.backgroundImage = `url(${img.src})`;
-    document.getElementById('scene-wrap').style.backgroundSize = 'cover';
-  };
+}
+initStars();
+
+function updateStars() {
+  const c = lineCanvas;
+  if (!c) return;
+  const ctx = lineCtx;
+  starPositions.forEach(s => {
+    s.y -= s.speed;
+    if (s.y < -5) { s.y = H + 5; s.x = Math.random() * W; }
+  });
+  // Draw on a separate overlay — skip here, draw in updateLines background
+}
+
+// Background star layer drawn over the scene-wrap
+let starCanvas = null;
+function drawStars() {
+  if (!starCanvas) {
+    starCanvas = document.createElement('canvas');
+    starCanvas.id = 'star-canvas';
+    starCanvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1';
+    document.getElementById('scene-wrap').insertBefore(starCanvas, document.getElementById('lines-canvas'));
+  }
+  starCanvas.width = W; starCanvas.height = H;
+  const ctx = starCanvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+  starPositions.forEach(s => {
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(136,136,170,${s.alpha})`;
+    ctx.fill();
+  });
 }
 
 // ====== INPUT HANDLING ======
@@ -381,6 +437,9 @@ wrap.addEventListener('pointerdown', e => {
   dragLast = {x:e.clientX, y:e.clientY};
   clickStart = {x:e.clientX, y:e.clientY};
   wrap.setPointerCapture(e.pointerId);
+  // Pause auto-rotation on interaction
+  autoRotate = false;
+  clearTimeout(autoRotateTimer);
 });
 wrap.addEventListener('pointermove', e => {
   if (!isDragging) return;
@@ -395,6 +454,8 @@ wrap.addEventListener('pointermove', e => {
 wrap.addEventListener('pointerup', e => {
   isDragging = false;
   wrap.releasePointerCapture(e.pointerId);
+  // Resume auto-rotation after 5s of inactivity
+  autoRotateTimer = setTimeout(() => { autoRotate = true; }, 5000);
   if (!wasDragged) {
     // Click — check if hitting an agent
     const el = document.elementFromPoint(e.clientX, e.clientY);
@@ -418,14 +479,11 @@ function selectAgent(id) {
   document.getElementById('infoPanel').classList.add('visible');
   document.querySelectorAll('.agent-card').forEach(c => {
     c.classList.toggle('selected', c.dataset.agentId === id);
-    if (c.dataset.agentId !== id) c.style.opacity = '0.35';
   });
 }
 function deselectAgent() {
   document.getElementById('infoPanel').classList.remove('visible');
-  document.querySelectorAll('.agent-card').forEach(c => {
-    c.classList.remove('selected'); c.style.opacity = '1';
-  });
+  document.querySelectorAll('.agent-card').forEach(c => c.classList.remove('selected'));
 }
 
 // ====== HISTORY (collapsible groups) ======
@@ -505,7 +563,13 @@ function renderHistory() {
 }
 window.toggleHistory = function(id) {
   const g = document.getElementById('hg-'+id);
-  if (g) g.classList.toggle('open');
+  if (!g) return;
+  const isOpening = !g.classList.contains('open');
+  // Close all other groups
+  document.querySelectorAll('.history-group').forEach(el => {
+    if (el.id !== 'hg-'+id) el.classList.remove('open');
+  });
+  if (isOpening) g.classList.add('open');
 };
 renderHistory();
 
@@ -522,6 +586,8 @@ function darken(hex, pct) {
 // ====== ANIMATION LOOP ======
 function animate() {
   updatePositions();
+  updateStars();
+  drawStars();
   updateLines();
   requestAnimationFrame(animate);
 }
@@ -530,9 +596,8 @@ animate();
 // ====== RESIZE ======
 window.addEventListener('resize', () => {
   getSceneSize();
-  // Re-render stars on resize (debounced)
-  clearTimeout(window._starTimer);
-  window._starTimer = setTimeout(drawStars, 200);
+  initStars();
+  drawStars();
 });
 </script>
 </body>
