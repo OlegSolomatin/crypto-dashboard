@@ -216,7 +216,7 @@ let targetRotX = 0.15, targetRotY = 0;
 
 // ====== TRUE 3D PROJECTION ======
 function project3D(x, y, z) {
-  const rx = targetRotX, ry = targetRotY;
+  const rx = displayRotX, ry = displayRotY;
   // Rotate Y
   let x1 = x * Math.cos(ry) - z * Math.sin(ry);
   let y1 = y;
@@ -260,6 +260,7 @@ function renderAll() {
   drawStars();
 }
 renderAll();
+updatePositions();
 
 // ====== UPDATE POSITIONS (every frame) ======
 function updatePositions() {
@@ -288,7 +289,7 @@ function updatePositions() {
     const sy = H/2 - y2 * sc;
     const float = Math.sin(t * 0.4 + i * 0.7) * 3;
 
-    card.style.transform = `translate(-50%, calc(-50% + ${float}px)) translate(${sx}px, ${sy}px) translate(0, 0) scale(${sc})`;
+    card.style.transform = `translate(calc(${sx}px - 50%), calc(${sy}px - 50% + ${float}px)) scale(${sc})`;
     card.style.left = '0';
     card.style.top = '0';
     card.dataset.curX = sx;
